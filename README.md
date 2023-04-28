@@ -1,6 +1,6 @@
 # Repository for the project 'eDNA in the Cornish blue'
 
-In [materials] you will find documents detailing methodology for sampling preparation, collection and preservation. 
+In materials you will find documents detailing methodology for sampling preparation, collection and preservation. 
 
 Also available are R files. 
 
