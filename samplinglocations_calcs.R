@@ -24,15 +24,44 @@ setwd('/Users/mollykressler/Documents/EDNA/data_edna')
 
 
 	hex<-st_as_sf(st_read('hexgrid_edna/hexagon_grid_edna_sampling_kernios_nocoastal.shp')) # proposed hexagon grid
-		# update the shapefle as partners agree to areas 
-			# st_write(hex,'hexgrid_edna/hexagon_grid_edna_sampling_kernios_nocoastal.shp',append=FALSE)
+		# update the shapefle as partners agree to areas and remove hexagons to out to sea
+			 st_write(hex,'hexgrid_edna/hexagon_grid_edna_sampling_kernios_nocoastal.shp',append=FALSE)
 
 	area_with_land<-ggplot()+geom_sf(data=area,alpha=0.2,fill='cadetblue4')+geom_sf(data=kernios,alpha=0.8,fill='grey82')+theme_bw() 
 	hex_with_land<-ggplot()+geom_sf(data=hex,alpha=0.2,fill='cadetblue4')+geom_sf(data=kernios,alpha=0.8,fill='grey82')+theme_bw() 
 		# ggsave(area_with_land,file='comms_figures/samplingarea_nogrd_withland.png',device='png',units='in',height=7,width=7,dpi=900)
 
 
-##############
+############## Hexagon map with hex-ID labels
+	# want a map with labels of hexagons, labels of locations, land shape, cw shape, and hexagon grid.
+
+	hexlabelled<-ggplot()+geom_sf(data=st_union(kernios),alpha=0.5,fill='grey82')+geom_sf(data=locations,pch=19,size=2,col='black')+geom_sf(data=hex,alpha=0.05,fill='cadetblue4')+geom_sf_text(data=hex,aes(label=hexID),col='black',size=4,vjust=.5)+geom_sf_text(data=locations,aes(label=Name),col='black',hjust=-0.2,vjust=0.1,size=2.5)+north(data=hex,location='topleft',scale=0.12,symbol=12)+xlab(NULL)+ylab(NULL)+theme_bw() 
+	ggsave(hexlabelled,file='comms_figures/labelled_hexagons_kernios_locations.png',device='png',units='in',height=7,width=7,dpi=1500)
+ 
+
+############## Update hex shapefile with informaiton on which parnters have commited to which hexagons
+
+	hex%>%print(n=Inf)
+	# from emails from 2-3 March 2023:
+		# Padstow Sea life safars  can confirm h20
+		# Atlantic diving (chris lowe, newquay) can do Boscastle to st ives, offshore more difficult but does run shark cage diving in the summer. summer is irregular and would need to pay for fuel. or go as commercial crew - need qualifs. --- hexagon h16
+		# Falmouth h19
+		# marine discovery - penzance, H13 confirmed
+
+	hex[20,2]<-as.character('Padstow, Sea Life Safaris')
+	hex[16,2]<-as.character('Newquay, CLowe at Atlantic Diving')
+	hex[19,2]<-as.character('FalHarbour, VSpooner')
+	hex[13,2]<-as.character('Penzance, Marine Discovery')
+
+
+	# simplify the hexagon map - remove the edge ones that are very far away and we cant sample - 2,5,11,17,,4,8,1,3,6,12,18,21,26
+
+	hexs2remove<-c('h2','h5','h11','h17','h4','h8','h1','h3','h6','h12','h18','h21','h26')
+	hex<-hex%>%filter(!(hexID%in%hexs2remove))
+	# re-label the hexagons 1-n
+	hex<-hex%>%mutate(hexID=paste0('h',c(1:14)),.before='geometry')
+
+	hex[1,2]<-as.character('IOS, OExeter')
 
 	
 ############## Working out hexagon areas for partners in regions of operation
@@ -142,11 +171,11 @@ setwd('/Users/mollykressler/Documents/EDNA/data_edna')
 		boxhex<-st_make_grid(box.cut,n=4.5,square=FALSE)
 		hex<-st_intersection(box.cut,boxhex) # cuts the hexagon grid to only within the area
 
-		hex2<-hex%>%dplyr::select(-Name,-Description)%>%slice(-1)%>%mutate(hexID=paste0('h',c(1:27)),.before='geometry')
-		hex2$hexID<-as.factor(hex2$hexID)
+		hex<-hex%>%dplyr::select(-Name,-Description)%>%slice(-1)%>%mutate(hexID=paste0('h',c(1:27)),.before='geometry')
+		hex$hexID<-as.factor(hex$hexID)
 			# need to remove the points (only 26 hexagons in study area but showing 28 because of imperfections in land mass shapes)
 
-			ggplot()+geom_sf(data=hex2)+geom_sf(data=hex2[20,],col='violetred4')+theme_bw()
+			ggplot()+geom_sf(data=hex)+geom_sf(data=hex[20,],col='violetred4')+theme_bw()
 
 		sites2<-as.data.frame(matrix(ncol=3,nrow=27))
 			colnames(sites2)<-c('siteID','geo.x','geo.y')
@@ -159,15 +188,15 @@ setwd('/Users/mollykressler/Documents/EDNA/data_edna')
 		for(i in 1:27){
 			i<-paste(i)
 			h<-paste0('h',i)
-			g<-st_geometry(hex2[i,][2])
-			p1<-st_sample(hex2[i,],type='random',size=1)
+			g<-st_geometry(hex[i,][2])
+			p1<-st_sample(hex[i,],type='random',size=1)
 			sites3$geometry[sites3$siteID==h]<-p1
 				}
-		ggplot()+geom_sf(data=hex2,alpha=0.2,fill='cadetblue2')+geom_sf(data=sites3,col='violetred4',alpha=0.3)+theme_bw() 
+		ggplot()+geom_sf(data=hex,alpha=0.2,fill='cadetblue2')+geom_sf(data=sites3,col='violetred4',alpha=0.3)+theme_bw() 
 
 		sites3%>%print(n=Inf)
 
-		#st_write(hex2,'hexagon_grid_edna_sampling_kernios_nocoastal.shp')
+		#st_write(hex,'hexagon_grid_edna_sampling_kernios_nocoastal.shp')
 		#st_write(sites3,'sampling_sites_randomgen_onePERhexagon_kernios.shp')
 
 

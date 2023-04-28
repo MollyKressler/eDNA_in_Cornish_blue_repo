@@ -29,3 +29,9 @@ map<-ggplot()+geom_sf(data=wetcut,col='cadetblue2',fill='cadetblue2',alpha=0.7)+
 ggsave(map,file='cornwallIOSmap_wthcoastalwater.png',device='png',units='in',height=6,width=6,dpi=800)
 
 #st_write(wetcut,'kernow_ios_coastalwater.shp',driver='ESRI Shapefile')
+
+## For Sci Comms - pngs of cornwall
+
+png.cornwall<-ggplot()+geom_sf(data=st_union(kernios),fill='white')+theme_void()
+ggsave(png.cornwall,file='png_kernios_whitefill.png',device='png',dpi=1200,unit='in',width=5)
+
