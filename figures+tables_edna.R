@@ -1,4 +1,5 @@
 ## - Figures and Tables for eDNA in Cornwall 
+### non-research question specific, relating to qPCR results
 
 ## created 29 September 2023 
 ## by Molly M Kressler
@@ -131,9 +132,25 @@ c <- read.csv('EDNA/data_edna/resultsANDcopies_perStandard_andNegControl_En.encr
 
 ## import species results (copies per replicate sample)
 
-	engraul <- read.csv('EDNA/data_edna/copies_perReplicate_notStandards_En.encras_TESTS_1to7_NOV2023.csv') # replicates and copies results 
-	allspp <- read.csv('copies_perReplicate_notStandards_allspecies_2023eDNACornishBlue.csv')
-	summary(engraul)
+	copies <- read_csv("data_downloads_notpublic/compiledspeciesqPCR_copiesresults_withmetadata_2023eDNACornishBlue.csv")
+	ntc <- read_csv("data_downloads_notpublic/resultsANDcopies_perStandard_andNegControl_En.encras_TESTS_1to7_NOV2023.csv", 
+	                col_types = cols(...1 = col_skip(), X = col_skip()))%>%
+	  mutate(Assay.Role = case_when(Assay.Role == 'Negative' ~ 'NTC',
+	                                Assay.Role == 'Positive' ~ 'Standard'
+	                                , .default = as.character(Assay.Role)))
+	
+	##########
+	## - Separate the Field controls from the copies results
+	##########
+	## use 'copies', replicateID will include 'WBC' 
+	
+	field.controls <- copies %>% filter(grepl('WBC', replicateID)) %>%
+	  mutate('Assay.Role' = 'Field.Control') # This is the field controls for the water bottles (and metaprobes from joint deployments)
+	field.controls 
+	
+	samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
+	  mutate('Assay.Role' = 'Field.Sample') # This is all field samples, water bottles and metaprobes, without the field controls 
+	
 	eng_sf <- st_as_sf(st_read('compiledspeciesqPCR_copiesresults_withmetadata_2023eDNACornishBlue.shp'),crs='WGS84')%>% # spatial and meta 
 		rename(sampleID = samplID,
 			Sample.Name = Smpl_Nm,
@@ -142,63 +159,57 @@ c <- read.csv('EDNA/data_edna/resultsANDcopies_perStandard_andNegControl_En.encr
 			engraulis.copies = engrls_,
 			sampDATE = smpDATE,
 			methodtype = mthdtyp)
-
-## range and medians Cq.means for samples, (1) all and (2) 'real' detections
-
-	# stack the data sets - select down for testID, Sample.Name, Cq.Mean, replicateID, engraulils.copies
-	samples <- engraul %>%
-		dplyr::select(testID, Assay.Role, Sample.Name, Cq.Mean,engraulis.copies)
-	c2 <- c %>%
-		dplyr::select(testID, Assay.Role, Sample.Name, Cq.Mean, engraulis.copies)
-	full <- bind_rows(samples,c2)
-	# NTC and Negataive are the same but are called different sometimes. And a standard is a positive. 
-	f2 <- full %>%
-		mutate(Assay.Role = case_when(Assay.Role == 'Negative' ~ 'NTC',
-			Assay.Role == 'Positive' ~ 'Standard'
-			, .default = as.character(Assay.Role)))
-	f2
-	# where Cq.Mean is zero matters but these wont show ona plot shoing the amplifcation of samples and standards and NTCs 
-
-	ntcs_na <- f2%>%filter(is.na(Cq.Mean) & Assay.Role == 'NTC')%>%
-		mutate(forplot = 42)
-
-	## some samples have Cq.Mean == NA..do the same for them, and add a jigger effect
 	
-	samples_na <- f2%>%filter(is.na(Cq.Mean) & Assay.Role == 'Unknown')%>%
-		mutate(forplot = 42)
-
-		scale_color_manual(values = c('#733A4F','#DAA507','#8EC7D2','#0D6A87','#07475A'))+
-
+	##########
+	## - Visualizing Amplification Results
+	##########
+	## stack datasets of field samples, field controls, and lab controls, & select down to only the columns we need - testID, Assay.Role, Sample.Name, species.cq.mean, species.copies
+	## engraulis 
+	eng.samples2 <- samples %>% dplyr::select(eventID,sampleID,testID, Assay.Role, Sample.Name, engraulis.cq.mean,engraulis.copies,methodtype)
+	eng.field.controls2 <- field.controls %>% dplyr::select(eventID,sampleID,testID, Assay.Role, Sample.Name, engraulis.cq.mean,engraulis.copies,methodtype)
+	eng.ntc2 <- ntc %>% dplyr::select(testID, Assay.Role, Sample.Name, Cq.Mean,engraulis.copies)%>%rename(engraulis.cq.mean=Cq.Mean)%>%mutate(sampleID = 'lab.controls',eventID = 'lab.controls',methodtype = 'lab.controls')
+	
+	eng.f2 <- bind_rows(eng.samples2, eng.field.controls2, eng.ntc2)
+	
+	## where Cq.Mean is zero matters but these wont show on a plot showing the amplification of samples and standards and NTCs - so we add in a false amplification one cycle LONGER than it ran for. 
+	
+	eng.ntcs.na <- eng.f2%>%
+	  filter(is.na(engraulis.cq.mean) & Assay.Role == 'NTC')%>%
+	  mutate(forplot = 43)
+	eng.field.sample.nas <- eng.f2%>%
+	  filter(is.na(engraulis.cq.mean) & Assay.Role == 'Field.Sample')%>%
+	  mutate(forplot = 43)
+	
+	#### PLOT: Cq.value/mean by type (NTC, Standard, Field Sample, Field Control) - species specific
 	## plot them as dots with colors based on Assay.Role
 	cqmeans_allwells_engraulis <- ggplot()+
-		geom_point(data=f2%>%filter(Cq.Mean !='NA'), aes(x = as_factor(testID), y = Cq.Mean, col = Assay.Role), size=3)+
-		scale_color_manual(values = c('#733A4F','#DAA507','#8EC7D2'))+
-		geom_point(data=ntcs_na, aes(x = as_factor(testID), y= forplot), size=5, pch=8, stroke = 1.5, col='#733A4F')+
-		geom_point(data=samples_na, aes(x = as_factor(testID), y= forplot), size=2, pch=8, col='#8EC7D2', position = 'jitter')+
-		ylim(0,50)+
-		ylab('CQ (mean)')+
-		xlab('Assay')+ 
-		theme_bw()
-	cqmeans_allwells_engraulis
-
+	       geom_point(data=eng.f2%>%filter(engraulis.cq.mean !='NA'), aes(x = as_factor(testID), y = engraulis.cq.mean, col = Assay.Role), size=3)+
+	      scale_color_manual(values = c('#DAA507','#8EC7D2','#733A4F','#07475A'))+
+	      geom_point(data=eng.ntcs.na, aes(x = as_factor(testID), y= forplot), size=5, pch=8, stroke = 1.5, col='#733A4F')+
+	    geom_point(data=eng.field.sample.nas, aes(x = as_factor(testID), y= forplot), size=2, pch=8, col='#8EC7D2', position = 'jitter')+
+	     ylim(0,50)+
+	      ylab('CQ (mean)')+
+	      xlab('Assay')+ 
+	      theme_bw()
+    
+		cqmeans_allwells_engraulis
 		ggsave(cqmeans_allwells_engraulis,file = 'EDNA/data_edna/figures_and_tables/cqmeans_allassays_engraulis_plot.png', device=png,units='in',height=5,width=6.5,dpi=700)
 
 
 
-## tables of species standard curve test results
-	## table per species of standards results (6 tables)
+  ## Species standard curve test results
+		  ## engraulis
+	
 
-	## table per species of replicates Cq and copies estimates (6 tables)
 
-
-## copies per replicate - species reuslts stacked (1 plot)
-	## 
+  ## Mega Table, grouped by Event ID: replicate copies and CQ results, corresponding experiment TestID, NTCs and Standards CQ values. 
 
 
 
 
-
-
+########
+## - Visualising Species Detections and copy number
+########
 
 ## DENSITY OF DETECTIONS, method specific then species specfic (so 12 plots in total) - creates a map plot with points of sampling locations (grouped by sampleID), where the size of the point ~ the relative abundance of a species  
 	## data = extraction data frame.
@@ -206,24 +217,6 @@ c <- read.csv('EDNA/data_edna/resultsANDcopies_perStandard_andNegControl_En.encr
 
 
 ## SPECIES PROPORTION OF DETECTIONS, method specific (2 plots in total) - creates a map plot with points of sampling locations (grouped by sampleID), where the point is a pie chart, and each species is a different colour, and the slice width is ~ the relative abundance of a species at THAT location. 
-
-
-
-
-
-##################
-## Investigating values of field controls - n.4s 
-	a <- sp2 %>% 
-		filter(methodtype == 'waterbottle')%>%
-		filter(grepl('.4',Sample.Name)) # grabs the rows  that have the string '.4' in the Sample.Name column
-	ggplot(data=c%>%filter(Assay.Role == c('Negative')), aes(x=Experiment, y=Cq.Mean))+
-	geom_bar(stat='identity')+ 
-	theme_bw()
-
-
-
-
-
 
 
 
