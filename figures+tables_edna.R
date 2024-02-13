@@ -166,8 +166,12 @@ c <- read.csv('EDNA/data_edna/resultsANDcopies_perStandard_andNegControl_En.encr
 	## stack datasets of field samples, field controls, and lab controls, & select down to only the columns we need - testID, Assay.Role, Sample.Name, species.cq.mean, species.copies
 	## engraulis 
 	eng.samples2 <- samples %>% dplyr::select(eventID,sampleID,testID, Assay.Role, Sample.Name, engraulis.cq.mean,engraulis.copies,methodtype)
-	eng.field.controls2 <- field.controls %>% dplyr::select(eventID,sampleID,testID, Assay.Role, Sample.Name, engraulis.cq.mean,engraulis.copies,methodtype)
-	eng.ntc2 <- ntc %>% dplyr::select(testID, Assay.Role, Sample.Name, Cq.Mean,engraulis.copies)%>%rename(engraulis.cq.mean=Cq.Mean)%>%mutate(sampleID = 'lab.controls',eventID = 'lab.controls',methodtype = 'lab.controls')
+	eng.field.controls2 <- field.controls %>% 
+		dplyr::select(eventID,sampleID,testID, Assay.Role, Sample.Name, engraulis.cq.mean,engraulis.copies,methodtype)
+	eng.ntc2 <- ntc %>% 
+		dplyr::select(testID, Assay.Role, Sample.Name, Cq.Mean,engraulis.copies)%>%
+		rename(engraulis.cq.mean=Cq.Mean)%>%
+		mutate(sampleID = 'lab.controls',eventID = 'lab.controls',methodtype = 'lab.controls')
 	
 	eng.f2 <- bind_rows(eng.samples2, eng.field.controls2, eng.ntc2)
 	
@@ -202,7 +206,33 @@ c <- read.csv('EDNA/data_edna/resultsANDcopies_perStandard_andNegControl_En.encr
 	
 
 
+  ## Glmer model of copy number between methods type, random effect of event ID
+    lm1 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_allspecies_copies_byMethodType.RDS') ## all species
+    lm2 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_fish_copies_byMethodType.RDS') ## fish 
+    lm3 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_sharks_copies_byMethodType.RDS') ## sharks   
+
+    models <- c(lm1, lm2, lm3)
+
+    summary <- modelsummary(models, coef_rename = c('methodtypewaterbottle' = 'Water Bottle', 'methodmetaprobe' = 'Metaprobe'),fmt=3,estimate='estimate', statistic='conf.int',stars=FALSE,conf_level=0.95,output='flextable')
+
+    summary_flex <- summary %>%
+        set_header_labels('Model 1' = 'All Species', 'Model 2' = 'Fish Species', 'Model 3' = 'Shark Species')%>%
+        theme_zebra()%>%
+        align(align = 'center', part = 'all')%>%
+        font(fontname = 'Arial', part = 'all')%>%
+        fontsize(size = 10, part = 'all')%>%
+        autofit()
+
+    save_as_image(summary_flex, 'summary_glmers_eventIDrandom_copies_byMethod.png', webshot = 'webshot2')
+
+     
+
   ## Mega Table, grouped by Event ID: replicate copies and CQ results, corresponding experiment TestID, NTCs and Standards CQ values. 
+
+
+
+
+
 
 
 
