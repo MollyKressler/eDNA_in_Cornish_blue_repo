@@ -169,8 +169,15 @@ pacman::p_load(sf,dplyr,lubridate,readr,readxl,lubridate,ggplot2,patchwork,cowpl
 		
 		stopifnot(nrow(ensc)==25) # 24 wells of standards, 1 well of NTC water, 1 row per well 
 
+	prio <- read_excel('data_edna/qPCRresults/2023Prinoaceglauca/Pglauca_STANDARDCURVETEST_JUL312023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
+		dplyr::select(-Exclude, -Plate.Control)%>%
+		filter(Assay.Name == 'P.glauca')%>% # filter out empty wells 
+		mutate(Sample.Name = paste0(Assay.Role,'_',Quantity)) # adjust sample.name to include standard and the concentration
+		
+		stopifnot(nrow(prio)==19) 
+
 	## save standards csv
-		write.csv(ensc,'qPCRresults/2023Engraulisencrasicolus/tiyded_results_En.encras_STANDARDCURVETEST_NOV24_2023.csv')
+		write.csv(prio,'data_edna/qPCRresults/2023Prinoaceglauca/Pglauca_STANDARDCURVETEST_JUL312023.csv')
 
 
 
