@@ -20,6 +20,15 @@ ntc <- read_csv("data_edna/resultsANDcopies_perStandard_andNegControl_En.encras_
   mutate(Assay.Role = case_when(Assay.Role == 'Negative' ~ 'NTC',
                                 Assay.Role == 'Positive' ~ 'Standard'
                                 , .default = as.character(Assay.Role)))
+ ## standard curve test assays - per species 
+   curves <- read_excel('data_edna/qPCRresults/standard_curve_equations_qPCR_2023species.xlsx')
+
+    engr.standards <- read_csv('data_edna/qPCRresults/2023Engraulisencrasicolus/tiyded_results_En.encras_STANDARDCURVETEST_NOV24_2023.csv',col_types = cols(...1 = col_skip()))
+    engr.standards
+
+    prio.standards <- read_csv('data_edna/qPCRresults/2023Prinoaceglauca/Pglauca_STANDARDCURVETEST_JUL312023.csv',col_types = cols(...1 = col_skip()))
+    prio.standards
+
 ## For server RStudio
 
 copies <- read_csv("data_downloads_notpublic/compiledspeciesqPCR_copiesresults_withmetadata_2023eDNACornishBlue.csv")
@@ -41,16 +50,102 @@ field.controls
 samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
   mutate('Assay.Role' = 'Field.Sample') # This is all field samples, water bottles and metaprobes, without the field controls 
 
+
+##########
+## - Taxonomic groups, copies
+##########
+
+  by.taxa <- samples%>%
+    rowwise()%>%
+    mutate(allspp.copies = sum(c_across(c(engraulis.copies,sprattus.copies,scombrus.copies,lamna.copies,alopias.copies,prionace.copies)), na.rm = TRUE),
+      fish.copies = sum(c_across(c(engraulis.copies,sprattus.copies,scombrus.copies)), na.rm = TRUE),
+      shark.copies = sum(c_across(c(lamna.copies,alopias.copies,prionace.copies)), na.rm = TRUE))
+
 ##################
 
 ##########
 ## - Plots
 ##########
 
-#### individual plots
-###
-  ## Cq.value/mean by Sampling Event - MP and WB.
-  ## geom_stat_summary, with ranges and medians for WBTs and MPs, and a star geom_point for WBC. These plots do NOT include where field samples NOR field controls had NAs. 
+#### Concentration over time - continuous, one line for MP, one line for WBT
+  # all species
+  dnacont_overtime<- ggplot(samples, aes(sampDATE,engraulis.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
+    geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
+    scale_color_manual(values=c('#DAA507','#8EC7D2'))+
+    scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
+    xlab('Sampling Date (2023)')+ 
+    ylab('Nanodrop Concentration')+
+    theme_bw()+
+    theme(plot.title = element_text(size=10, face='italic'))+
+    labs(fill="Method", col= "Method")
+  
+#### Standards Curve Test results - present them with Log() of Quantity and then with a table of the slope, intercept, R squared, and efficiency
+  ## engraulis
+    curve.engr <-  ggplot(data = engr.standards, aes(log(Quantity),Cq)) + 
+      geom_point()+
+      xlab('Quantity (copies/µL, log)')+
+      geom_abline()+
+      theme_bw()+
+      ggtitle('E. encrasicolus')+
+      theme(plot.title = element_text(size=10, face='italic'))
+
+  ## prionace
+    curve.prio <-  ggplot(data = prio.standards, aes(log(Quantity),Cq)) + 
+      geom_point()+
+      xlab('Quantity (copies/µL, log)')+
+      geom_abline()+
+      xlim(1.5,12)+
+      theme_bw()+
+      ggtitle('P. glauca')+
+      theme(plot.title = element_text(size=10, face='italic'))
+  
+  ## alopias
+    curve.alop <-  ggplot(data = alop.standards, aes(log(Quantity),Cq)) + 
+      geom_point()+
+      xlab('Quantity (copies/µL, log)')+
+      geom_abline()+
+      xlim(1.5,12)+
+      theme_bw()+
+      ggtitle('A. vulpinas')+
+      theme(plot.title = element_text(size=10, face='italic'))
+  
+  ## lamna 
+    curve.lamn <-  ggplot(data = lamn.standards, aes(log(Quantity),Cq)) + 
+      geom_point()+
+      xlab('Quantity (copies/µL, log)')+
+      geom_abline()+
+      xlim(1.5,12)+
+      theme_bw()+
+      ggtitle('L. nasus')+
+      theme(plot.title = element_text(size=10, face='italic'))
+  
+  ## scombrus
+    curve.scro <-  ggplot(data = scro.standards, aes(log(Quantity),Cq)) + 
+      geom_point()+
+      xlab('Quantity (copies/µL, log)')+
+      geom_abline()+
+      xlim(1.5,12)+
+      theme_bw()+
+      ggtitle('S. scombrus')+
+      theme(plot.title = element_text(size=10, face='italic'))
+  
+  ## sprattus     
+    curve.spra <-  ggplot(data = spra.standards, aes(log(Quantity),Cq)) + 
+      geom_point()+
+      xlab('Quantity (copies/µL, log)')+
+      geom_abline()+
+      xlim(1.5,12)+
+      theme_bw()+
+      ggtitle('S. sprattus')+
+      theme(plot.title = element_text(size=10, face='italic'))
+  
+
+  ## stack/panel them 
+      curves.plots <- curve.engr+curve.prio+curve.alop+curve.lamn+curve.scro+curve.spra
+      ggsave(curves.plots, file='data_edna/figures_and_tables/comparingmethods/StandardsCurves_allSpecies_2023.png',device=png,units='in',height=11,width=4.5,dpi=900)
+
+#### Cq.value/mean by Sampling Event - MP and WB. These plots do NOT include where field samples NOR field controls had NAs. 
+  ## all species individually?  No. becomes a little meaningless to have species lumped together for Cq value over time. Cq values dont 'sum' like copy numbers do, so adding them wouldn't be correct, and taking the mean would cause regression to the mean most likely. 
     #engraulis
     stat_sum_engraulis_methodtypes_byEVENT <- ggplot(data = samples)+
       stat_summary(aes(x = eventID, y = engraulis.cq.mean, color = methodtype), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = median, position = position_dodge(0.6))+
@@ -122,12 +217,48 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       ggtitle('S. sprattus')+
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(size=10, face='italic'))+
       labs(color="Method")
-  
-  ###
-  ## Copies over time - continuous, one line for MP, one line for WBT.
-  ## geom_smooth uses conditional means. standard error bars are calculated using predict(). 
+
+#### Copies over time - continuous, one line for MP, one line for WBT.
+  ## geom_smooth uses conditional means. standard error bars are calculated using predict(). - all species, fish and shark taxa plots go with the GLMER model table
+
+  ## all species together
+     copies_time_allspp <- ggplot(by_taxa, aes(sampDATE,allspp.copies.copies, group = methodtype, col = methodtype, fill = methodtype))+
+      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
+      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
+      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
+      xlab('Sampling Date (2023)')+ 
+      ylab('Copies')+
+      ggtitle('All Species')+
+      theme_bw()+
+      theme(plot.title = element_text(size=10, face='italic'))+
+      labs(fill="Method", col= "Method")
+         
+  ## fish species together 
+    copies_time_fish <- ggplot(by_taxa, aes(sampDATE,fish.copies, group = methodtype, col = methodtype, fill = methodtype))+
+      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
+      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
+      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
+      xlab('Sampling Date (2023)')+ 
+      ylab('Copies')+
+      ggtitle('Fish Species')+
+      theme_bw()+
+      theme(plot.title = element_text(size=10, face='italic'))+
+      labs(fill="Method", col= "Method")
+
+  ## shark species together 
+    copies_time_shark <- ggplot(by_taxa, aes(sampDATE,shark.copies, group = methodtype, col = methodtype, fill = methodtype))+
+      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
+      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
+      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
+      xlab('Sampling Date (2023)')+ 
+      ylab('Copies')+
+      ggtitle('Shark Species')+
+      theme_bw()+
+      theme(plot.title = element_text(size=10, face='italic'))+
+      labs(fill="Method", col= "Method")
+
+  ## species, one at a time - for supplementary
     # engraulis
-    
     copies_time_engraulis <- ggplot(samples, aes(sampDATE,log(engraulis.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
       geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
@@ -199,117 +330,53 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       theme(plot.title = element_text(size=10, face='italic'))+
       labs(fill="Method", col= "Method")
 
-  ###
-  ## Concentration over time - continuous, one line for MP, one line for WBT
-    # engraulis
-    dnacont_overtime_engraulis <- ggplot(samples, aes(sampDATE,engraulis.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
-      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
-      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
-      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
-      xlab('Sampling Date (2023)')+ 
-      ylab('Nanodrop Concentration')+
-      ggtitle('E. encrasicolus')+
-      theme_bw()+
-      theme(plot.title = element_text(size=10, face='italic'))+
-      labs(fill="Method", col= "Method")
+
+
+#### stacked/panelled plots - qPCR results
+## fish species together 
+  fish_methods_comp_together <- (stat_sum_engraulis_methodtypes_byEVENT + copies_time_engraulis) / (stat_sum_scombrus_methodtypes_byEVENT + copies_time_scombrus) / (stat_sum_sprattus_methodtypes_byEVENT + copies_time_sprattus)  + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
+
+## shark species together 
+  shark_methods_comp_together <- (stat_sum_alopias_methodtypes_byEVENT + copies_time_alopias) / (stat_sum_prionace_methodtypes_byEVENT + copies_time_prionace) / (stat_sum_lamna_methodtypes_byEVENT + copies_time_lamna)  + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
+  
+## by species, one at a time
+  # engraulis
+  engraulis_methods_comp_together <- stat_sum_engraulis_methodtypes_byEVENT / copies_time_engraulis  + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
+
+  # alopias
+  alopias_methods_comp_together <- stat_sum_alopias_methodtypes_byEVENT / copies_time_alopias + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
+
+  # prionace
+  prionace_methods_comp_together <- stat_sum_prionace_methodtypes_byEVENT / copies_time_prionace  + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
+
+  # lamna
+  lamna_methods_comp_together <- stat_sum_lamna_methodtypes_byEVENT / copies_time_lamna + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
+
+  # scombrus
+  scombrus_methods_comp_together <- stat_sum_scombrus_methodtypes_byEVENT / copies_time_scombrus + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
+
+  # sprattus 
+  sprattus_methods_comp_together <- stat_sum_sprattus_methodtypes_byEVENT / copies_time_sprattus  + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
+
+
+
+
+  ## SAVE - local R 
+    ## individual plots
+    ggsave(stat_sum_engraulis_methodtypes_byEVENT,file='data_edna/figures_and_tables/comparingmethods/engraulis_cqmean_bymethod_atSamplingEvents_2023_statsumplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
+    ggsave(copies_time_engraulis,file='data_edna/figures_and_tables/comparingmethods/engraulis_copies_bymethod_overtime_2023_geomsmoothplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
     
-    # alopias
-    dnacont_overtime_alopias <- ggplot(samples, aes(sampDATE,alopias.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
-      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
-      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
-      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
-      xlab('Sampling Date (2023)')+ 
-      ylab('Nanodrop Concentration')+
-      ggtitle('A. vulpinas')+
-      theme_bw()+
-      theme(plot.title = element_text(size=10, face='italic'))+
-      labs(fill="Method", col= "Method")
-    
-    # prionace
-    dnacont_overtime_prionace <- ggplot(samples, aes(sampDATE,prionace.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
-      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
-      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
-      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
-      xlab('Sampling Date (2023)')+ 
-      ylab('Nanodrop Concentration')+
-      ggtitle('P. glauca')+
-      theme_bw()+
-      theme(plot.title = element_text(size=10, face='italic'))+
-      labs(fill="Method", col= "Method")
-    
-    # lamna
-    dnacont_overtime_lamna <- ggplot(samples, aes(sampDATE, lamna.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
-      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
-      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
-      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
-      xlab('Sampling Date (2023)')+ 
-      ylab('Nanodrop Concentration')+
-      ggtitle('L. nasus')+
-      theme_bw()+
-      theme(plot.title = element_text(size=10, face='italic'))+
-      labs(fill="Method", col= "Method")
-    
-    # scombrus
-    dnacont_overtime_scombrus <- ggplot(samples, aes(sampDATE,scombrus.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
-      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
-      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
-      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
-      xlab('Sampling Date (2023)')+ 
-      ylab('Nanodrop Concentration')+
-      ggtitle('S. scrombrus')+
-      theme_bw()+
-      theme(plot.title = element_text(size=10, face='italic'))+
-      labs(fill="Method", col= "Method")
-    
-    # sprattus 
-    dnacont_overtime_sprattus <- ggplot(samples, aes(sampDATE,sprattus.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
-      geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
-      scale_color_manual(values=c('#DAA507','#8EC7D2'))+
-      scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
-      xlab('Sampling Date (2023)')+ 
-      ylab('Nanodrop Concentration')+
-      ggtitle('S. sprattus')+
-      theme_bw()+
-      theme(plot.title = element_text(size=10, face='italic'))+
-      labs(fill="Method", col= "Method")
+    ggsave(dnacont_overtime,file='data_edna/figures_and_tables/comparingmethods/concentration_bymethod_overtime_2023_geomsmoothplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
 
-
-#### stacked/panelled plots 
-# engraulis
-engraulis_methods_comp_together <- stat_sum_engraulis_methodtypes_byEVENT / copies_time_engraulis / dnacont_overtime_engraulis + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
-
-# alopias
-alopias_methods_comp_together <- stat_sum_alopias_methodtypes_byEVENT / copies_time_alopias / dnacont_overtime_alopias + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
-
-# prionace
-prionace_methods_comp_together <- stat_sum_prionace_methodtypes_byEVENT / copies_time_prionace / dnacont_overtime_prionace + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
-
-# lamna
-lamna_methods_comp_together <- stat_sum_lamna_methodtypes_byEVENT / copies_time_lamna / dnacont_overtime_lamna + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
-
-# scombrus
-scombrus_methods_comp_together <- stat_sum_scombrus_methodtypes_byEVENT / copies_time_scombrus / dnacont_overtime_scombrus + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
-
-# sprattus 
-sprattus_methods_comp_together <- stat_sum_sprattus_methodtypes_byEVENT / copies_time_sprattus / dnacont_overtime_sprattus + plot_layout(guides = 'collect') & theme(legend.position = 'bottom', legend.justification = 'centre', legend.direction = 'vertical')
-
-
-## SAVE - local R 
-## individual plots
-ggsave(stat_sum_engraulis_methodtypes_byEVENT,file='data_edna/figures_and_tables/comparingmethods/engraulis_cqmean_bymethod_atSamplingEvents_2023_statsumplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
-ggsave(copies_time_engraulis,file='data_edna/figures_and_tables/comparingmethods/engraulis_copies_bymethod_overtime_2023_geomsmoothplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
-ggsave(dnacont_overtime_engraulis,file='data_edna/figures_and_tables/comparingmethods/engraulis_concentration_bymethod_overtime_2023_geomsmoothplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
-
-## stacked/panelled plots 
-ggsave(engraulis_methods_comp_together,file='data_edna/figures_and_tables/comparingmethods/engraulis_2023_stacked_ConttOverTime_CQperEvent_CopiesOverTime.png',device=png,units='in',height=11,width=4.5,dpi=900)
+    ## stacked/panelled plots 
+    ggsave(engraulis_methods_comp_together,file='data_edna/figures_and_tables/comparingmethods/engraulis_2023_stacked_CQperEvent_CopiesOverTime.png',device=png,units='in',height=8,width=4.5,dpi=900)
 
 
 ##########
 ## - Statistical tests
 ##########
-  samples
 
-  ## lmer with random effect on event ID 
+  ## glmer with random effect on event ID 
     ## all species
       lmdata1 <- samples %>% 
           rowwise()%>%
@@ -421,52 +488,71 @@ ggsave(engraulis_methods_comp_together,file='data_edna/figures_and_tables/compar
          stat.test <- t.test(method.meanSD.allspp.btwrep ~ methodtype, data = temp.sd.allspp.gathered)
 
 
-  ##########
-  ## - Tables
-  ##########
-  ## Broad descriptive statistics - one table for whole project, 2 rows, 6 columns: samples sizes of each (sampling events and replicates), average concentration, lowest copy number non-zero, highest copy number non-zero, median copy number non-zero
-  # a long data frame, one row per replicate sample, columns for each of the above. then we'll create a summary df. 
-  samples # Sample.Name = unique Replicate ID, methodtype = grouping factor, 
+##########
+## - Tables
+##########
+
+## Standards Curve Test results 
+  curvelineartestresult.flex <- curves %>%
+  dplyr::select(-species, -dateofassay)%>%
+  mutate(sp = case_when(sp == 'engraulis' ~ 'E. encrasicolus', sp == 'prionace' ~ 'P. glauca', .default = as.character(sp)))%>%
+    flextable()%>%
+      set_header_labels(sp = 'Species', intercept = 'Intercept', Slope = 'Slope', r.squared = 'R-squared', efficiency = 'Efficiency')%>%
+      theme_zebra()%>%
+      align(align = 'center', part = 'all')%>%
+      font(fontname = 'Arial', part = 'all')%>%
+      fontsize(size = 10, part = 'all')%>%
+      autofit()
+
+      save_as_image(curvelineartestresult.flex, 'standardsCurveTest_Table_2023_sharksAndFish.png', webshot = 'webshot2')
+
+
+
+## Broad descriptive statistics - one table for whole project, 2 rows, 6 columns: samples sizes of each (sampling events and replicates), average concentration, lowest copy number non-zero, highest copy number non-zero, median copy number non-zero
+# a long data frame, one row per replicate sample, columns for each of the above. then we'll create a summary df. 
+samples # Sample.Name = unique Replicate ID, methodtype = grouping factor, 
+
+
+## not species specific. only sample sizes, and mean SD between replicates 
+size <- samples %>%
+  group_by(methodtype)%>%
+  distinct(eventID)%>%
+  tally()
+size
+tbl <- left_join(size, sd.allspp2)
+tbl
+
+  tbl.all <- tbl %>% mutate(method.meanSD.engr.copies = round(method.meanSD.engr.copies,3))%>% 
+    flextable()%>%
+    set_header_labels(methodtype = 'Method', n = 'Sample Size', method.meanSD.engr.copies = 'Replicate Avg. SD')%>%
+    theme_zebra()%>%
+    align(align = 'center', part = 'all')%>%
+    font(fontname = 'Arial', part = 'all')%>%
+    fontsize(size = 10, part = 'all')%>%
+    autofit()
+
+## Glmer model of copy number between methods type, random effect of event ID
+lm1 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_allspecies_copies_byMethodType.RDS') ## all species
+lm2 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_fish_copies_byMethodType.RDS') ## fish 
+lm3 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_sharks_copies_byMethodType.RDS') ## sharks   
+
+models <- c(lm1, lm2, lm3)   
+
+summary <- modelsummary(models, coef_rename = c('methodtypewaterbottle' = 'Water Bottle', 'methodmetaprobe' = 'Metaprobe'),fmt=3,estimate='estimate', statistic='conf.int',stars=FALSE,conf_level=0.95,output='flextable')
+
+summary_flex <- summary %>%
+    set_header_labels('Model 1' = 'All Species', 'Model 2' = 'Fish Species', 'Model 3' = 'Shark Species')%>%
+    theme_zebra()%>%
+    align(align = 'center', part = 'all')%>%
+    font(fontname = 'Arial', part = 'all')%>%
+    fontsize(size = 10, part = 'all')%>%
+    autofit() # this table goes with the geom_smooth graphs of copies over time by taxon
+
+save_as_image(summary_flex, 'summary_glmers_eventIDrandom_copies_byMethod.png', webshot = 'webshot2')
+
   
-    ## not species specific. only sample sizes, and mean SD between replicates 
-    size <- samples %>%
-      group_by(methodtype)%>%
-      distinct(eventID)%>%
-      tally()
-    size
-    tbl <- left_join(size, sd.allspp2)
-    tbl
-    
-      tbl.all <- tbl %>% mutate(method.meanSD.engr.copies = round(method.meanSD.engr.copies,3))%>% 
-        flextable()%>%
-        set_header_labels(methodtype = 'Method', n = 'Sample Size', method.meanSD.engr.copies = 'Replicate Avg. SD')%>%
-        theme_zebra()%>%
-        align(align = 'center', part = 'all')%>%
-        font(fontname = 'Arial', part = 'all')%>%
-        fontsize(size = 10, part = 'all')%>%
-        autofit()
-  
-  ## Glmer model of copy number between methods type, random effect of event ID
-    lm1 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_allspecies_copies_byMethodType.RDS') ## all species
-    lm2 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_fish_copies_byMethodType.RDS') ## fish 
-    lm3 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_sharks_copies_byMethodType.RDS') ## sharks   
 
-    models <- c(lm1, lm2, lm3)   
 
-    summary <- modelsummary(models, coef_rename = c('methodtypewaterbottle' = 'Water Bottle', 'methodmetaprobe' = 'Metaprobe'),fmt=3,estimate='estimate', statistic='conf.int',stars=FALSE,conf_level=0.95,output='flextable')
-
-    summary_flex <- summary %>%
-        set_header_labels('Model 1' = 'All Species', 'Model 2' = 'Fish Species', 'Model 3' = 'Shark Species')%>%
-        theme_zebra()%>%
-        align(align = 'center', part = 'all')%>%
-        font(fontname = 'Arial', part = 'all')%>%
-        fontsize(size = 10, part = 'all')%>%
-        autofit()
-
-    save_as_image(summary_flex, 'summary_glmers_eventIDrandom_copies_byMethod.png', webshot = 'webshot2')
-
-  
-    
 
 
 
