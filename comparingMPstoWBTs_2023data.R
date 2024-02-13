@@ -8,7 +8,7 @@
 ##########
 ## - Load at start 
 ##########
-pacman::p_load(sf,tidyverse,lubridate,readr,readxl,lubridate,ggplot2,patchwork,cowplot,stringr,flextable)
+pacman::p_load(sf,tidyverse,lubridate,readr,readxl,lubridate,ggplot2,patchwork,cowplot,stringr,flextable,rstatix,lme4, modelsummary)
 
 ## For local R, not for server RStudio
 
@@ -202,7 +202,6 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
   ###
   ## Concentration over time - continuous, one line for MP, one line for WBT
     # engraulis
-    
     dnacont_overtime_engraulis <- ggplot(samples, aes(sampDATE,engraulis.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
       geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
@@ -309,18 +308,91 @@ ggsave(engraulis_methods_comp_together,file='data_edna/figures_and_tables/compar
 ## - Statistical tests
 ##########
   samples
-  ## Calculate the mean SD between replicates within sampling events of the two methods across all species
-    ## a df with one value for MP and one for WB = the mean SD between replicate samples - across all species 
-        ## will need to pivot the data long, so that there is one column for metaprobes         and one for water. bottles, and one column for replicate ID, and one column for         species assay. and then each row will be a copy number. Unique rows will be             identified with species AND replicate ID. 
-        # select down to species.copies columns, replicate ID, and methodtype. 
-        a <- samples %>% dplyr::select(engraulis.copies, Sample.Name, replicateID, methodtype)
-        aa <- a %>% pivot_longer(values_to = 'methodtype', cols = 'engraulis.copies')
+
+  ## lmer with random effect on event ID 
+    ## all species
+      lmdata1 <- samples %>% 
+          rowwise()%>%
+          mutate(copies = sum(c_across(ends_with('copies')))) # adds up columns that have copy numbers of each species 
+      lm1 <- glmer(copies ~ methodtype + (1|eventID), data = lmdata.engr, family = Gamma(link = 'log'))
+
+    ## fish only
+      lmdata.fish <- samples %>% 
+          dplyr::select(eventID,methodtype,sampleID,replicateID,engraulis.copies,scrombrus.copies,sprattus.copies)%>%
+          rowwise()%>%
+          mutate(copies = sum(c_across(ends_with('copies')))) # adds up columns that have copy numbers of each species 
+      lm2 <- glmer(copies ~ methodtype + (1|eventID), data = lmdata.fish, family = Gamma(link = 'log'))
+
+    ## sharks only
+      lmdata.sharks <- samples %>% 
+          dplyr::select(eventID,methodtype,sampleID,replicateID,alopias.copies,prionace.copies,lamna.copies)%>%
+          rowwise()%>%
+          mutate(copies = sum(c_across(ends_with('copies')))) # adds up columns that have copy numbers of each species 
+      lm3 <- glmer(copies ~ methodtype + (1|eventID), data = lmdata.sharks, family = Gamma(link = 'log'))
+
+    ## code for engraulis only right  now
+      lmdata.engr <- samples %>% 
+          rowwise()%>%
+          mutate(copies = sum(c_across(ends_with('copies')))+0.001) # add a constant because the Gamma can't have 0s. 
+      lm.engr <- glmer(copies ~ methodtype + (1|eventID), data = lmdata.engr, family = Gamma(link = 'log'))
+
+    ## save model RDS 
+      saveRDS(lm1, 'data_edna/modelRDS/glmer_RandomEventID_allspecies_copies_byMethodType.RDS')
+      saveRDS(lm2, 'data_edna/modelRDS/glmer_RandomEventID_fish_copies_byMethodType.RDS')
+      saveRDS(lm3, 'data_edna/modelRDS/glmer_RandomEventID_sharks_copies_byMethodType.RDS')
+
+  ## Deprecated by the GLMER - Calculate the mean SD between replicates within sampling events of the two methods across all species (as one value), then for fosh species lumped, and then for shark species lumped. Add in a t-test of each column in flextable. 
+      sd.allspp <- samples%>%
+        group_by(sampleID)%>%
+        summarise(sd.engr.copies = sd(engraulis.copies, na.rm=TRUE),
+          sd.alop.copies = sd(alopias.copies, na.rm=TRUE),
+          sd.prio.copies = sd(prionace.copies, na.rm=TRUE),
+          sd.lamn.copies = sd(lamna.copies, na.rm=TRUE),
+          sd.scro.copies = sd(scrombrus.copies, na.rm=TRUE),
+          sd.spra.copies = sd(sprattus.copies, na.rm=TRUE))
       
-    ## repeat, for only all fish species
-  
-    ## repeat, for only all elasmobranch species 
-  
-    ## For now you can calculate it for engraulis only, without pivoting the data:  
+      sd.allspp.spread <- left_join(sd.allspp, samples%>%dplyr::select(sampleID, methodtype))%>%
+        group_by(methodtype)%>%
+        summarise(method.meanSD.engr.copies = mean(sd.engr.copies),
+          method.meanSD.alop.copies = sd(sd.alop.copies, na.rm=TRUE),
+          method.meanSD.prio.copies = sd(sd.prio.copies, na.rm=TRUE),
+          method.meanSD.lamn.copies = sd(sd.lamn.copies, na.rm=TRUE),
+          method.meanSD.scro.copies = sd(sd.scro.copies, na.rm=TRUE),
+          method.meanSD.spra.copies = sd(sd.spra.copies, na.rm=TRUE))
+     
+      sd.allspp.gathered <- sd.allspp.spread%>%
+         rowwise()%>%
+         mutate(meanSD.allspp.btwrep = mean(c_across(c(method.meanSD.engr.copies,method.meanSD.alop.copies,method.meanSD.prio.copies,method.meanSD.lamn.copies,method.meanSD.scro.copies,method.meanSD.spra.copies)), na.rm = TRUE),
+            meanSD.FISH.btwrep = mean(c_across(c(method.meanSD.engr.copies,method.meanSD.scro.copies,method.meanSD.spra.copies)), na.rm = TRUE),
+            meanSD.SHARK.btwrep = mean(c_across(c(method.meanSD.alop.copies,method.meanSD.prio.copies,method.meanSD.lamn.copies)), na.rm = TRUE))%>%
+         dplyr::select(methodtype,meanSD.allspp.btwrep,meanSD.FISH.btwrep,meanSD.SHARK.btwrep)%>%
+          flextable()%>%
+          set_header_labels(methodtype = 'Method', n = 'Sample Size', meanSD.allspp.btwrep = 'All Species\n\ Replicate Avg. SD', meanSD.FISH.btwrep = 'Fish Species\n\ Replicate Avg. SD', meanSD.SHARK.btwrep = 'Shark Species\n\ Replicate Avg. SD')%>%
+          theme_zebra()%>%
+          align(align = 'center', part = 'all')%>%
+          font(fontname = 'Arial', part = 'all')%>%
+          fontsize(size = 10, part = 'all')%>%
+          autofit()
+
+    ## repeat, listing out all species - for Supplementary materials
+      sd.allspp2 <- left_join(sd.allspp, samples%>%filter()%>%dplyr::select(sampleID, methodtype))%>%
+        group_by(methodtype)%>%
+        summarise(method.meanSD.engr.copies = mean(sd.engr.copies),
+          method.meanSD.scro.copies = mean(sd.scro.copies, na.rm=TRUE),
+          method.meanSD.spra.copies = mean(sd.spra.copies, na.rm=TRUE),
+          method.meanSD.alop.copies = mean(sd.alop.copies, na.rm=TRUE),
+          method.meanSD.prio.copies = mean(sd.prio.copies, na.rm=TRUE),
+          method.meanSD.lamn.copies = mean(sd.lamn.copies, na.rm=TRUE))%>%
+          flextable()%>%
+            set_header_labels(methodtype = 'Method', n = 'Sample Size', method.meanSD.engr.copies = 'E. encrasicolus\n\ Replicate Avg. SD', method.meanSD.scro.copies = 'S. scombrus\n\ Replicate Avg. SD', method.meanSD.spra.copies = 'S. sprattus\n\ Replicate Avg. SD', method.meanSD.alop.copies = 'A. vulpinas\n\ Replicate Avg. SD', method.meanSD.prio.copies = 'P. glauca\n\ Replicate Avg. SD', method.meanSD.lamn.copies = 'L. nasus\n\ Replicate Avg. SD')%>%
+            theme_zebra()%>%
+            align(align = 'center', part = 'all')%>%
+            font(fontname = 'Arial', part = 'all')%>%
+            fontsize(size = 10, part = 'all')%>%
+            autofit()
+
+
+    ## For now you can calculate it for engraulis only
       sd.allspp <- samples%>%
         group_by(sampleID)%>%
         summarise(sd.engr.copies = sd(engraulis.copies, na.rm=TRUE))
@@ -329,6 +401,24 @@ ggsave(engraulis_methods_comp_together,file='data_edna/figures_and_tables/compar
         summarise(method.meanSD.engr.copies = mean(sd.engr.copies))
       sd.allspp2  
 
+      ## test if this will work with multiple columns (ie multiple species copy numbers) - It does work. Leave this here for later workshopping.
+        temp <- samples %>% mutate(spB.copies = rnorm(n=nrow(samples),mean=.25, sd=6))
+        sd.temp <- temp%>%
+        group_by(sampleID)%>%
+        summarise(sd.engr.copies = sd(engraulis.copies, na.rm=TRUE), sd.spB.copies = sd(spB.copies))
+        temp.sd2 <- left_join(sd.temp, temp%>%dplyr::select(sampleID, eventID, methodtype))%>%
+           group_by(methodtype)%>%
+          summarise(method.meanSD.engr.copies = mean(sd.engr.copies),method.meansd.spB.copies = mean(sd.spB.copies)) 
+        temp.sd2  
+
+        temp.eventID.method.meanSD <- left_join(sd.temp, temp%>%dplyr::select(sampleID, eventID, methodtype)) %>% group_by(eventID, methodtype)%>%
+          summarise(method.meanSD.engr.copies = mean(sd.engr.copies),method.meansd.spB.copies = mean(sd.spB.copies))
+
+        temp.sd.allspp.gathered <- temp.sd2 %>%
+         rowwise()%>%
+         mutate(method.meanSD.allspp.btwrep = mean(c_across(c('method.meanSD.engr.copies','method.meansd.spB.copies')), na.rm = TRUE)) ## this adds a column with the information. the new column is the mean of the row. This would also allow the fish and shark data to remain for
+        
+         stat.test <- t.test(method.meanSD.allspp.btwrep ~ methodtype, data = temp.sd.allspp.gathered)
 
 
   ##########
@@ -338,29 +428,53 @@ ggsave(engraulis_methods_comp_together,file='data_edna/figures_and_tables/compar
   # a long data frame, one row per replicate sample, columns for each of the above. then we'll create a summary df. 
   samples # Sample.Name = unique Replicate ID, methodtype = grouping factor, 
   
-  ## not species specific. only sample sizes, and mean SD between replicates 
-  size <- samples %>%
-    group_by(methodtype)%>%
-    distinct(eventID)%>%
-    tally()
-  size
-  tbl <- left_join(size, sd.allspp2)
-  tbl
-  
-    tbl.all <- tbl %>% mutate(method.meanSD.engr.copies = round(method.meanSD.engr.copies,3))%>% 
-      flextable()%>%
-      set_header_labels(methodtype = 'Method', n = 'Sample Size', method.meanSD.engr.copies = 'Replicate Avg. SD')%>%
-      theme_zebra()%>%
-      align(align = 'center', part = 'all')%>%
-      font(fontname = 'Arial', part = 'all')%>%
-      fontsize(size = 10, part = 'all')%>%
-      autofit()
-      
-  
-  ## species specific with copy number information 
-  ## engraulis
-  engr.size
-  engraulis.comparison.summary.table <- 
+    ## not species specific. only sample sizes, and mean SD between replicates 
+    size <- samples %>%
+      group_by(methodtype)%>%
+      distinct(eventID)%>%
+      tally()
+    size
+    tbl <- left_join(size, sd.allspp2)
+    tbl
     
+      tbl.all <- tbl %>% mutate(method.meanSD.engr.copies = round(method.meanSD.engr.copies,3))%>% 
+        flextable()%>%
+        set_header_labels(methodtype = 'Method', n = 'Sample Size', method.meanSD.engr.copies = 'Replicate Avg. SD')%>%
+        theme_zebra()%>%
+        align(align = 'center', part = 'all')%>%
+        font(fontname = 'Arial', part = 'all')%>%
+        fontsize(size = 10, part = 'all')%>%
+        autofit()
+  
+  ## Glmer model of copy number between methods type, random effect of event ID
+    lm1 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_allspecies_copies_byMethodType.RDS') ## all species
+    lm2 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_fish_copies_byMethodType.RDS') ## fish 
+    lm3 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_sharks_copies_byMethodType.RDS') ## sharks   
+
+    models <- c(lm1, lm2, lm3)   
+
+    summary <- modelsummary(models, coef_rename = c('methodtypewaterbottle' = 'Water Bottle', 'methodmetaprobe' = 'Metaprobe'),fmt=3,estimate='estimate', statistic='conf.int',stars=FALSE,conf_level=0.95,output='flextable')
+
+    summary_flex <- summary %>%
+        set_header_labels('Model 1' = 'All Species', 'Model 2' = 'Fish Species', 'Model 3' = 'Shark Species')%>%
+        theme_zebra()%>%
+        align(align = 'center', part = 'all')%>%
+        font(fontname = 'Arial', part = 'all')%>%
+        fontsize(size = 10, part = 'all')%>%
+        autofit()
+
+    save_as_image(summary_flex, 'summary_glmers_eventIDrandom_copies_byMethod.png', webshot = 'webshot2')
+
+  
+    
+
+
+
+
+
+
+
+
+
 
 
