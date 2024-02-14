@@ -492,7 +492,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
 ## - Tables
 ##########
 
-## Standards Curve Test results 
+#### Standards Curve Test results 
   curvelineartestresult.flex <- curves %>%
   dplyr::select(-species, -dateofassay)%>%
   mutate(sp = case_when(sp == 'engraulis' ~ 'E. encrasicolus', sp == 'prionace' ~ 'P. glauca', .default = as.character(sp)))%>%
@@ -506,32 +506,58 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
 
       save_as_image(curvelineartestresult.flex, 'standardsCurveTest_Table_2023_sharksAndFish.png', webshot = 'webshot2')
 
+      
+#### CQ.mean values for all replicates, field controls and lab controls, of both sample types - Supplementary 
+  ## select down to vars for each dataset. rename to get things to match up 
+    samples2 <- samples %>% dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'methodtype', ends_with('.copies'), 'testID')
+    samples2
+    field.controls2 <- field.controls %>% dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'methodtype', ends_with('.copies'), 'testID')
+    ntc2 <- ntc %>%
+      mutate(eventID = 'n/a', methodtype = 'n/a', date = 'n/a', Sample.Name = case_when(is.na(Sample.Name) ~ 'NTC_NA', .default = as.character(Sample.Name))) %>% 
+      dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'methodtype',  ends_with('.copies'), 'testID')
+    ntc2
+    
+   results.byrole <- bind_rows(samples2, field.controls2, ntc2) %>%
+      flextable()%>%
+     set_header_labels(Sample.Name = 'Sample ID', Assay.Role = 'Assay Role', 'eventID' = 'Event ID', 'methodtype' = 'Method Type', testID = 'qPCR Test','date' = 'Date', engraulis.copies = 'E. encrasicolus copies')%>%
+     theme_zebra()%>%
+     align(align = 'center', part = 'all')%>%
+     font(fontname = 'Arial', part = 'all')%>%
+     fontsize(size = 10, part = 'all')%>%
+     autofit()
+   results.byrole
 
-
-## Broad descriptive statistics - one table for whole project, 2 rows, 6 columns: samples sizes of each (sampling events and replicates), average concentration, lowest copy number non-zero, highest copy number non-zero, median copy number non-zero
-# a long data frame, one row per replicate sample, columns for each of the above. then we'll create a summary df. 
-samples # Sample.Name = unique Replicate ID, methodtype = grouping factor, 
-
-
-## not species specific. only sample sizes, and mean SD between replicates 
+   save_as_image(results.byrole, file = 'results_allsamples_triplicateCQmeans_2023eDNA.png', webshot = 'webshot2')
+   
+   
+#### sample size and lowest/median/highest copy number per taxa
 size <- samples %>%
   group_by(methodtype)%>%
   distinct(eventID)%>%
   tally()
 size
-tbl <- left_join(size, sd.allspp2)
-tbl
 
-  tbl.all <- tbl %>% mutate(method.meanSD.engr.copies = round(method.meanSD.engr.copies,3))%>% 
-    flextable()%>%
-    set_header_labels(methodtype = 'Method', n = 'Sample Size', method.meanSD.engr.copies = 'Replicate Avg. SD')%>%
+by.taxa
+
+#### Soaktime - Supplementary
+  soaks <- samples %>%
+    filter(methodtype=='metaprobe')%>%
+    mutate(timeOUT = case_when(timeOUT == 'TBD' ~ as.character(timeIN), is.na(timeOUT) ~ as.character(timeIN), .default = as.character(paste0(timeOUT,':00'))))%>%
+  mutate(timeOUT2 = hms(timeOUT), timeIN2 = hms(timeIN), soaktime = timeOUT2-timeIN2)%>%
+    dplyr::select(Sample.Name, replicateID, eventID, soaktime)%>%
+    mutate(soaktime = seconds(soaktime))
+ soaks.flex <-  soaks %>% flextable() %>%
+    set_header_labels(Sample.Name = 'Sample ID', replicateID = 'replicateID', 'eventID' = 'Event ID', soaktime = 'Soak Time (sec)')%>%
     theme_zebra()%>%
     align(align = 'center', part = 'all')%>%
     font(fontname = 'Arial', part = 'all')%>%
     fontsize(size = 10, part = 'all')%>%
     autofit()
-
-## Glmer model of copy number between methods type, random effect of event ID
+    
+  save_as_image(soaks.flex, file = 'soaktimes_metaprobes_seconds_2023.png', webshot = 'webshot2')
+  
+  
+#### Glmer model of copy number between methods type, random effect of event ID
 lm1 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_allspecies_copies_byMethodType.RDS') ## all species
 lm2 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_fish_copies_byMethodType.RDS') ## fish 
 lm3 <- readRDS('data_edna/modelRDS/glmer_RandomEventID_sharks_copies_byMethodType.RDS') ## sharks   
