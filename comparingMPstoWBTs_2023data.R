@@ -14,7 +14,9 @@ pacman::p_load(sf,tidyverse,lubridate,readr,readxl,lubridate,ggplot2,patchwork,c
 
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA')
 
-copies <- read_csv("data_edna/compiledspeciesqPCR_copiesresults_withmetadata_2023eDNACornishBlue.csv")
+samples <- read_csv('data_edna/compiledspeciesqPCR_SamplingEventCompiledCopiesandCq_withmetadata_2023eDNACornishBlue.csv') # copies and Cq per methodtype per sampling event 
+copies <- read_csv("data_edna/compiledspeciesqPCR_copiesresults_withmetadata_2023eDNACornishBlue.csv") # copies and Cq per replicate 
+tech.copies <- read_csv("data_edna/compiledspeciesqPCR_copiesTECHNICALreps_withmetadata_2023eDNACornishBlue.csv") # copies and Cq per technical replicate
 ntc <- read_csv("data_edna/resultsANDcopies_perStandard_andNegControl_En.encras_TESTS_1to7_NOV2023.csv", 
                 col_types = cols(...1 = col_skip(), X = col_skip()))%>%
   mutate(Assay.Role = case_when(Assay.Role == 'Negative' ~ 'NTC',
@@ -46,16 +48,21 @@ ntc <- read_csv("data_downloads_notpublic/resultsANDcopies_perStandard_andNegCon
 field.controls <- copies %>% filter(grepl('WBC', replicateID)) %>%
   mutate('Assay.Role' = 'Field.Control') # This is the field controls for the water bottles (and metaprobes from joint deployments)
 field.controls 
+techreps.field.controls <- tech.copies %>% filter(grepl('WBC', replicateID)) %>%
+  mutate('Assay.Role' = 'Field.Control') 
+techreps.field.controls 
 
-samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
+repsamples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
   mutate('Assay.Role' = 'Field.Sample') # This is all field samples, water bottles and metaprobes, without the field controls 
+techreps.samples <- tech.copies %>% filter(!grepl('WBC', replicateID)) %>%
+  mutate('Assay.Role' = 'Field.Sample')
 
 
 ##########
 ## - Taxonomic groups, copies
 ##########
 
-  by.taxa <- samples%>%
+  by.taxa <- repsamples%>%
     rowwise()%>%
     mutate(allspp.copies = sum(c_across(c(engraulis.copies,sprattus.copies,scombrus.copies,lamna.copies,alopias.copies,prionace.copies)), na.rm = TRUE),
       fish.copies = sum(c_across(c(engraulis.copies,sprattus.copies,scombrus.copies)), na.rm = TRUE),
@@ -67,9 +74,9 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
 ## - Plots
 ##########
 
-#### Concentration over time - continuous, one line for MP, one line for WBT
+#### Concentration over time - continuous, one line for MP, one line for WBT - replicate repsamples data
   # all species
-  dnacont_overtime<- ggplot(samples, aes(sampDATE,engraulis.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
+  dnacont_overtime<- ggplot(repsamples, aes(sampDATE,engraulis.dnaCont, group = methodtype, col = methodtype, fill = methodtype))+
     geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
     scale_color_manual(values=c('#DAA507','#8EC7D2'))+
     scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
@@ -144,13 +151,12 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       curves.plots <- curve.engr+curve.prio+curve.alop+curve.lamn+curve.scro+curve.spra
       ggsave(curves.plots, file='data_edna/figures_and_tables/comparingmethods/StandardsCurves_allSpecies_2023.png',device=png,units='in',height=11,width=4.5,dpi=900)
 
-#### Cq.value/mean by Sampling Event - MP and WB. These plots do NOT include where field samples NOR field controls had NAs. 
-  ## all species individually?  No. becomes a little meaningless to have species lumped together for Cq value over time. Cq values dont 'sum' like copy numbers do, so adding them wouldn't be correct, and taking the mean would cause regression to the mean most likely. 
+#### Cq.value per Technical replicate and Sampling Event - MP and WB. These plots do NOT include where field repsamples NOR field controls had NAs. species specific 
     #engraulis
-    stat_sum_engraulis_methodtypes_byEVENT <- ggplot(data = samples)+
-      stat_summary(aes(x = eventID, y = engraulis.cq.mean, color = methodtype), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = median, position = position_dodge(0.6))+
+    stat_sum_engraulis_methodtypes_byEVENT <- ggplot(data = techreps.repsamples)+
+      stat_summary(aes(x = eventID, y = engraulis.Cq, color = methodtype), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = median, position = position_dodge(0.6))+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
-      ylab('Cq (median, IQR)')+
+      ylab('Cq')+
       xlab('Sampling Event')+
       ylim(c(32,42))+
       theme_bw()+
@@ -159,7 +165,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(color="Method")
     
     # alopias
-    stat_sum_alopias_methodtypes_byEVENT <- ggplot(data = samples)+
+    stat_sum_alopias_methodtypes_byEVENT <- ggplot(data = repsamples)+
       stat_summary(aes(x = eventID, y = alopias.cq.mean, color = methodtype), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = median, position = position_dodge(0.6))+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       ylab('Cq (median, IQR)')+
@@ -171,7 +177,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(color="Method")         
     
     # prionace
-    stat_sum_prionace_methodtypes_byEVENT <- ggplot(data = samples)+
+    stat_sum_prionace_methodtypes_byEVENT <- ggplot(data = repsamples)+
       stat_summary(aes(x = eventID, y = prionace.cq.mean, color = methodtype), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = median, position = position_dodge(0.6))+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       ylab('Cq (median, IQR)')+
@@ -183,7 +189,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(color="Method")         
     
     # lamna
-    stat_sum_lamna_methodtypes_byEVENT <- ggplot(data = samples)+
+    stat_sum_lamna_methodtypes_byEVENT <- ggplot(data = repsamples)+
       stat_summary(aes(x = eventID, y = lamna.cq.mean, color = methodtype), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = median, position = position_dodge(0.6))+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       ylab('Cq (median, IQR)')+
@@ -195,7 +201,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(color="Method")         
     
     # scombrus
-    stat_sum_scombrus_methodtypes_byEVENT <- ggplot(data = samples)+
+    stat_sum_scombrus_methodtypes_byEVENT <- ggplot(data = repsamples)+
       stat_summary(aes(x = eventID, y = scombrus.cq.mean, color = methodtype), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = median, position = position_dodge(0.6))+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       ylab('Cq (median, IQR)')+
@@ -207,7 +213,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(color="Method")         
     
     # sprattus 
-    stat_sum_sprattus_methodtypes_byEVENT <- ggplot(data = samples)+
+    stat_sum_sprattus_methodtypes_byEVENT <- ggplot(data = repsamples)+
       stat_summary(aes(x = eventID, y = sprattus.cq.mean, color = methodtype), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = median, position = position_dodge(0.6))+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       ylab('Cq (median, IQR)')+
@@ -218,7 +224,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1), plot.title = element_text(size=10, face='italic'))+
       labs(color="Method")
 
-#### Copies over time - continuous, one line for MP, one line for WBT.
+#### Copies over time - continuous, one line for MP, one line for WBT. Replicate repsamples, not technical
   ## geom_smooth uses conditional means. standard error bars are calculated using predict(). - all species, fish and shark taxa plots go with the GLMER model table
 
   ## all species together
@@ -259,7 +265,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
 
   ## species, one at a time - for supplementary
     # engraulis
-    copies_time_engraulis <- ggplot(samples, aes(sampDATE,log(engraulis.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
+    copies_time_engraulis <- ggplot(repsamples, aes(sampDATE,log(mean.engraulis.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
       geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
@@ -271,7 +277,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(fill="Method", col= "Method")
     
     # alopias
-    copies_time_alopias <- ggplot(samples, aes(sampDATE,log(alopias.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
+    copies_time_alopias <- ggplot(repsamples, aes(sampDATE,log(alopias.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
       geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
@@ -283,7 +289,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(fill="Method", col= "Method")
     
     # prionace
-    copies_time_prionace <- ggplot(samples, aes(sampDATE,log(prionace.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
+    copies_time_prionace <- ggplot(repsamples, aes(sampDATE,log(prionace.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
       geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
@@ -295,7 +301,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(fill="Method", col= "Method")
     
     # lamna
-    copies_time_lamna <- ggplot(samples, aes(sampDATE,log(lamna.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
+    copies_time_lamna <- ggplot(repsamples, aes(sampDATE,log(lamna.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
       geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
@@ -307,7 +313,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(fill="Method", col= "Method")
     
     # scombrus
-    copies_time_scombrus <- ggplot(samples, aes(sampDATE,log(scombrus.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
+    copies_time_scombrus <- ggplot(repsamples, aes(sampDATE,log(scombrus.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
       geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
@@ -319,7 +325,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       labs(fill="Method", col= "Method")
     
     # sprattus 
-    copies_time_sprattus <- ggplot(samples, aes(sampDATE,log(sprattus.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
+    copies_time_sprattus <- ggplot(repsamples, aes(sampDATE,log(sprattus.copies+0.00001), group = methodtype, col = methodtype, fill = methodtype))+
       geom_smooth(span = 3, se = TRUE, level = 0.95, alpha=0.3)+
       scale_color_manual(values=c('#DAA507','#8EC7D2'))+
       scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
@@ -363,7 +369,8 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
 
   ## SAVE - local R 
     ## individual plots
-    ggsave(stat_sum_engraulis_methodtypes_byEVENT,file='data_edna/figures_and_tables/comparingmethods/engraulis_cqmean_bymethod_atSamplingEvents_2023_statsumplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
+    ggsave(stat_sum_engraulis_methodtypes_byEVENT,file='data_edna/figures_and_tables/comparingmethods/engraulis_cqTechReps_bymethod_atSamplingEvents_2023_statsumplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
+
     ggsave(copies_time_engraulis,file='data_edna/figures_and_tables/comparingmethods/engraulis_copies_bymethod_overtime_2023_geomsmoothplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
     
     ggsave(dnacont_overtime,file='data_edna/figures_and_tables/comparingmethods/concentration_bymethod_overtime_2023_geomsmoothplot.png',device=png,units='in',height=5,width=6.5,dpi=700)
@@ -378,27 +385,27 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
 
   ## glmer with random effect on event ID 
     ## all species
-      lmdata1 <- samples %>% 
+      lmdata1 <- repsamples %>% 
           rowwise()%>%
           mutate(copies = sum(c_across(ends_with('copies')))) # adds up columns that have copy numbers of each species 
-      lm1 <- glmer(copies ~ methodtype + (1|eventID), data = lmdata.engr, family = Gamma(link = 'log'))
+      lm1 <- glmer(copies ~ methodtype + (1|eventID), data = lmdata1, family = Gamma(link = 'log'))
 
     ## fish only
-      lmdata.fish <- samples %>% 
+      lmdata.fish <- repsamples %>% 
           dplyr::select(eventID,methodtype,sampleID,replicateID,engraulis.copies,scrombrus.copies,sprattus.copies)%>%
           rowwise()%>%
           mutate(copies = sum(c_across(ends_with('copies')))) # adds up columns that have copy numbers of each species 
       lm2 <- glmer(copies ~ methodtype + (1|eventID), data = lmdata.fish, family = Gamma(link = 'log'))
 
     ## sharks only
-      lmdata.sharks <- samples %>% 
+      lmdata.sharks <- repsamples %>% 
           dplyr::select(eventID,methodtype,sampleID,replicateID,alopias.copies,prionace.copies,lamna.copies)%>%
           rowwise()%>%
           mutate(copies = sum(c_across(ends_with('copies')))) # adds up columns that have copy numbers of each species 
       lm3 <- glmer(copies ~ methodtype + (1|eventID), data = lmdata.sharks, family = Gamma(link = 'log'))
 
     ## code for engraulis only right  now
-      lmdata.engr <- samples %>% 
+      lmdata.engr <- repsamples %>% 
           rowwise()%>%
           mutate(copies = sum(c_across(ends_with('copies')))+0.001) # add a constant because the Gamma can't have 0s. 
       lm.engr <- glmer(copies ~ methodtype + (1|eventID), data = lmdata.engr, family = Gamma(link = 'log'))
@@ -409,7 +416,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       saveRDS(lm3, 'data_edna/modelRDS/glmer_RandomEventID_sharks_copies_byMethodType.RDS')
 
   ## Deprecated by the GLMER - Calculate the mean SD between replicates within sampling events of the two methods across all species (as one value), then for fosh species lumped, and then for shark species lumped. Add in a t-test of each column in flextable. 
-      sd.allspp <- samples%>%
+      sd.allspp <- repsamples%>%
         group_by(sampleID)%>%
         summarise(sd.engr.copies = sd(engraulis.copies, na.rm=TRUE),
           sd.alop.copies = sd(alopias.copies, na.rm=TRUE),
@@ -418,7 +425,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
           sd.scro.copies = sd(scrombrus.copies, na.rm=TRUE),
           sd.spra.copies = sd(sprattus.copies, na.rm=TRUE))
       
-      sd.allspp.spread <- left_join(sd.allspp, samples%>%dplyr::select(sampleID, methodtype))%>%
+      sd.allspp.spread <- left_join(sd.allspp, repsamples%>%dplyr::select(sampleID, methodtype))%>%
         group_by(methodtype)%>%
         summarise(method.meanSD.engr.copies = mean(sd.engr.copies),
           method.meanSD.alop.copies = sd(sd.alop.copies, na.rm=TRUE),
@@ -442,7 +449,7 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
           autofit()
 
     ## repeat, listing out all species - for Supplementary materials
-      sd.allspp2 <- left_join(sd.allspp, samples%>%filter()%>%dplyr::select(sampleID, methodtype))%>%
+      sd.allspp2 <- left_join(sd.allspp, repsamples%>%filter()%>%dplyr::select(sampleID, methodtype))%>%
         group_by(methodtype)%>%
         summarise(method.meanSD.engr.copies = mean(sd.engr.copies),
           method.meanSD.scro.copies = mean(sd.scro.copies, na.rm=TRUE),
@@ -460,16 +467,16 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
 
 
     ## For now you can calculate it for engraulis only
-      sd.allspp <- samples%>%
+      sd.allspp <- repsamples%>%
         group_by(sampleID)%>%
         summarise(sd.engr.copies = sd(engraulis.copies, na.rm=TRUE))
-      sd.allspp2 <- left_join(sd.allspp, samples%>%dplyr::select(sampleID, methodtype))%>%
+      sd.allspp2 <- left_join(sd.allspp, repsamples%>%dplyr::select(sampleID, methodtype))%>%
         group_by(methodtype)%>%
         summarise(method.meanSD.engr.copies = mean(sd.engr.copies))
       sd.allspp2  
 
       ## test if this will work with multiple columns (ie multiple species copy numbers) - It does work. Leave this here for later workshopping.
-        temp <- samples %>% mutate(spB.copies = rnorm(n=nrow(samples),mean=.25, sd=6))
+        temp <- repsamples %>% mutate(spB.copies = rnorm(n=nrow(repsamples),mean=.25, sd=6))
         sd.temp <- temp%>%
         group_by(sampleID)%>%
         summarise(sd.engr.copies = sd(engraulis.copies, na.rm=TRUE), sd.spB.copies = sd(spB.copies))
@@ -507,29 +514,108 @@ samples <- copies %>% filter(!grepl('WBC', replicateID)) %>%
       save_as_image(curvelineartestresult.flex, 'standardsCurveTest_Table_2023_sharksAndFish.png', webshot = 'webshot2')
 
       
-#### CQ.mean values for all replicates, field controls and lab controls, of both sample types - Supplementary 
+#### CQ.mean values for all replicates, field controls and lab controls, of both sample types - Supplementary. 15/2/2024: want to add a ratio (e.g. 2/4) describing how many technical reps amplified. But do then only use samples (replicates with mean copy number) for the table
   ## select down to vars for each dataset. rename to get things to match up 
-    samples2 <- samples %>% dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'methodtype', ends_with('.copies'), 'testID')
-    samples2
-    field.controls2 <- field.controls %>% dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'methodtype', ends_with('.copies'), 'testID')
+    repsamples2 <- repsamples %>% dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'replicateID', 'methodtype', ends_with('.copies'), 'testID')
+    repsamples2
+    tech.samples2 <- techreps.samples %>% dplyr::select('Assay.Role', 'date', 'Sample.Name', 'replicateID', 'eventID', 'methodtype', ends_with('.copies'), 'testID')
+    tech.samples2
+
+    field.controls2 <- field.controls %>% dplyr::select('Assay.Role', 'date', 'Sample.Name', 'replicateID', 'eventID', 'methodtype', ends_with('.copies'), 'testID')
+    techreps.field.controls2 <- techreps.field.controls %>% dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'replicateID', 'methodtype', ends_with('.copies'), 'testID')
+    techreps.field.controls2
+
     ntc2 <- ntc %>%
       mutate(eventID = 'n/a', methodtype = 'n/a', date = 'n/a', Sample.Name = case_when(is.na(Sample.Name) ~ 'NTC_NA', .default = as.character(Sample.Name))) %>% 
-      dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'methodtype',  ends_with('.copies'), 'testID')
+      dplyr::select('Assay.Role', 'date', 'Sample.Name', 'eventID', 'methodtype',  ends_with('.copies'), 'testID', Cq)
     ntc2
-    
-   results.byrole <- bind_rows(samples2, field.controls2, ntc2) %>%
+
+  
+  ## calculate the number of tech reps that amplified 
+    tt <- techreps.samples %>% group_by(Sample.Name) %>% 
+        tally(engraulis.Cq != 'NA')
+    repsamples3 <- left_join(repsamples2, tt, relationship = 'one-to-one', by='Sample.Name')%>%
+      mutate(engraulis.Amplified = paste0(n,'/3'))%>%
+      mutate_if(is.numeric, round, digits = 3)
+    repsamples3
+    ttt <- techreps.field.controls %>% group_by(Sample.Name) %>% 
+        tally(engraulis.Cq != 'NA')
+    field.controls3 <- left_join(field.controls2, ttt, relationship = 'one-to-one', by='Sample.Name')%>%
+      mutate(engraulis.Amplified = paste0(n,'/3'))%>%
+      mutate_if(is.numeric, round, digits = 3)
+    field.controls3
+    tttt <- ntc2 %>% group_by(testID, Sample.Name) %>% 
+        tally(Cq != 'NA')
+    ntc3 <- left_join(ntc2, tttt, relationship = 'one-to-one', by=c('Sample.Name','testID'))%>%
+      mutate(engraulis.Amplified = paste0(n,'/1'))%>%
+      dplyr::select(-Cq)%>%
+      rename(mean.engraulis.copies = engraulis.copies)%>% 
+      mutate_if(is.numeric, round, digits = 3)
+    ntc3
+
+
+  ## make table - supplementary
+   results.byrole.replicates <- bind_rows(repsamples3, field.controls3, ntc3) %>%
+      dplyr::select(-n, -replicateID)%>%
       flextable()%>%
-     set_header_labels(Sample.Name = 'Sample ID', Assay.Role = 'Assay Role', 'eventID' = 'Event ID', 'methodtype' = 'Method Type', testID = 'qPCR Test','date' = 'Date', engraulis.copies = 'E. encrasicolus copies')%>%
+     set_header_labels(Sample.Name = 'Sample ID', Assay.Role = 'Assay Role', 'eventID' = 'Event ID', 'methodtype' = 'Method Type', testID = 'qPCR Test','date' = 'Date', mean.engraulis.copies = 'E. encrasicolus\n\ copies', engraulis.Amplified = 'Amplified\n\ (E. encrasicolus)')%>%
      theme_zebra()%>%
      align(align = 'center', part = 'all')%>%
      font(fontname = 'Arial', part = 'all')%>%
      fontsize(size = 10, part = 'all')%>%
      autofit()
-   results.byrole
+   results.byrole.replicates
 
-   save_as_image(results.byrole, file = 'results_allsamples_triplicateCQmeans_2023eDNA.png', webshot = 'webshot2')
-   
-   
+   save_as_image(results.byrole.replicates, 'data_edna/figures_and_tables/results_allsamples_triplicateCQmeans_2023eDNA.png', webshot = 'webshot2')
+  
+  ## make table shorter - mean copy number PER SAMPLE, not replicate, and amplified ratios  
+
+    samples <- read_csv('data_edna/compiledspeciesqPCR_SamplingEventCompiledCopiesandCq_withmetadata_2023eDNACornishBlue.csv')
+    
+    ttttt <- techreps.samples %>% group_by(sampleID) %>% 
+        tally(engraulis.Cq != 'NA')
+    samples2 <- left_join(samples, ttttt, relationship = 'one-to-one', by='sampleID')%>%
+      mutate(engraulis.Amplified = paste0(n,'/9'))
+    summary(samples2)
+
+    # update the field controls and ntcs 
+      samples3 <- samples2 %>% 
+        dplyr::select('date', 'eventID', 'methodtype',  ends_with('.copies'), 'testID', ends_with('Amplified'))%>%
+        mutate(Assay.Role = 'Field.Sample')%>%
+        relocate(Assay.Role,eventID,testID,methodtype, date,  ends_with('Cq'), ends_with('.copies'), ends_with('Amplified'))%>%
+        mutate_if(is.numeric, round, digits = 3)
+      ntc4 <- ntc3 %>%
+        dplyr::select(-n,-Sample.Name) %>%
+        rename(sample.mean.engraulis.copies = mean.engraulis.copies)%>%
+        relocate(Assay.Role, eventID,testID,methodtype, date,  ends_with('Cq'), ends_with('.copies'), ends_with('Amplified'))
+      field.controls4 <- field.controls3 %>% 
+        dplyr::select(-n, -replicateID, -Sample.Name)%>%
+        rename(sample.mean.engraulis.copies = mean.engraulis.copies)%>%
+        relocate(Assay.Role, eventID, testID, methodtype, date,  ends_with('Cq'), ends_with('.copies'), ends_with('Amplified'))
+
+      #### UPDATE WITH MORE SPECIES 
+    results.byrole <- bind_rows(samples3, 
+      field.controls4, ntc4)%>%
+      flextable()%>%
+       set_header_labels(Assay.Role = 'Assay Role', 'eventID' = 'Event ID', 'methodtype' = 'Method Type', testID = 'qPCR Test','date' = 'Date', sample.mean.engraulis.copies = 'E. encrasicolus\n\ copies (Sample mean)', engraulis.Amplified = 'Amplified\n\ (E. encrasicolus)')%>%
+       theme_zebra()%>%
+       align(align = 'center', part = 'all')%>%
+       font(fontname = 'Arial', part = 'all')%>%
+       fontsize(size = 10, part = 'all')%>%
+       autofit()
+
+    results.byrole
+
+   save_as_image(results.byrole, 'data_edna/figures_and_tables/qPCRresults_allspecies_copiesPERevent_AmplifiedRatio_2023eDNA.png', webshot = 'webshot2')
+
+
+
+
+
+
+
+
+
 #### sample size and lowest/median/highest copy number per taxa
 size <- samples %>%
   group_by(methodtype)%>%
@@ -554,7 +640,7 @@ by.taxa
     fontsize(size = 10, part = 'all')%>%
     autofit()
     
-  save_as_image(soaks.flex, file = 'soaktimes_metaprobes_seconds_2023.png', webshot = 'webshot2')
+  save_as_image(soaks.flex, 'soaktimes_metaprobes_seconds_2023.png', webshot = 'webshot2')
   
   
 #### Glmer model of copy number between methods type, random effect of event ID
