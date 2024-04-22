@@ -1,10 +1,10 @@
 ## - Figures and Tables for eDNA in Cornwall 
-### non-research question specific, relating to qPCR results
+### comparisons between sampling methods are in a different R doc
+###
 
 ## created 29 September 2023 
 ## by Molly M Kressler
 
-# testign Git push
 ########
 ## Load data  
 ########
@@ -91,33 +91,52 @@ c <- read.csv('EDNA/data_edna/resultsANDcopies_perStandard_andNegControl_En.encr
 
   ### Maps 
 	## LOCATIONS
+		coastalwater <- st_as_sf(st_read('EDNA/data_edna/kernow_ios_coastalwater.shp'), crs='WGS84')
+		kernow <- st_as_sf(st_read('EDNA/data_edna/kernow.shp'), crs='WGS84')
+		ios <- st_as_sf(st_read('EDNA/data_edna/islesofscilly.shp'), crs='WGS84')
+		kernios <- st_as_sf(st_union(kernow, ios))
+
 		##  using sampling data only (more samples collected than processed at most times)
 		locations_sampling <- ggplot()+
-			geom_sf(data=kernios2,alpha=0.8,fill='grey72')+
+			geom_sf(data=kernios,alpha=0.8,fill='grey72')+
 			geom_sf(data=sp1, col='cadetblue4',size=2,pch=18,alpha=0.45)+
 			theme_bw() 
 			ggsave(locations_sampling,file='locations_sampling_april2sept2023.png',device=png,units='in',height=5,width=5,dpi=600)
 		
 		locations_sampling_CSorR <- ggplot()+
-			geom_sf(data=kernios2,alpha=0.8,fill='grey72')+
+			geom_sf(data=kernios,alpha=0.8,fill='grey72')+
 			geom_sf(data=sp1%>%filter(type=='R'), col='cadetblue4',size=2,pch=18,alpha=0.45)+
 			geom_sf(data=sp1%>%filter(type=='CS'), col='violetred4',size=2,pch=16)+
 			theme_bw() 
 
 		locations_sampling_bymonth <- ggplot()+
-			geom_sf(data=kernios2,alpha=0.8,fill='grey72')+
+			geom_sf(data=kernios,alpha=0.8,fill='grey72')+
 			geom_sf(data=sp1, aes(colour=month),size=3,pch=18,alpha=0.75)+
 			scale_colour_manual(values=sixmonths.palette)+
 			theme_bw() 
 
 		##  using extraction + metadata sf
 		location_extractions <- ggplot()+
-			geom_sf(data=kernios2,col='grey72')+
+			geom_sf(data=kernios,col='grey72')+
 			geom_sf(data=sp1, col='cadetblue4',size=2,pch=18,alpha=0.45)+
 			theme_bw() 
 
-	# Cq.means of NTCs and samples
-	c
+
+		## For PUBS
+		location_extractions <- ggplot()+
+			geom_sf(data=coastalwater,fill='cadetblue4', lwd=0.5, alpha = 0.2)+
+			geom_sf(data=kernios,fill='grey82', lwd=0.5)+
+			geom_sf(data=st_jitter(st_geometry(sp1), factor=0.01),size=2,pch=20, alpha = 0.5)+
+			theme_bw() 
+		location_extractions # this is at the sample replicate level
+		
+		sample_location_extractions <- ggplot()+
+			geom_sf(data=coastalwater,fill='cadetblue4', lwd=0.5, alpha = 0.2)+
+			geom_sf(data=kernios,fill='grey82', lwd=0.5)+
+			geom_sf(data=st_jitter(st_geometry(sp1%>%distinct(samplID, .keep_all = TRUE)), factor=0.001),size=3,pch=20, alpha = 0.5)+
+			theme_bw() 
+		sample_location_extractions # this is at the sample replicate level
+
 
 
 

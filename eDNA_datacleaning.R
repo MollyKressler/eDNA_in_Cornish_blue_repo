@@ -1,6 +1,6 @@
 ## - Data cleaning, eDNA in Cornwall 
 
-## created 29 September 2023 
+## created 29 September 2023. updated april 2024 for results tables from the Quant Flex Studio 7 in the ESI. 
 ## by Molly M Kressler 
 
 #################################
@@ -113,40 +113,113 @@ pacman::p_load(sf,dplyr,lubridate,readr,readxl,lubridate,ggplot2,patchwork,cowpl
 	 	dplyr::select(sampleID,eppendorfID,dnaCont,ratio260.280,ratio260.230,date)%>%
 	 	rename(Sample.Name = eppendorfID) # use this to match smapleID to eppendorf IDs
 
-######### SAMPLES
+######### SAMPLES & STANDARDS, repeated for all species 
 
-	# Engraulis encrasicolus 
-	ent1 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST1_NOV23_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
-		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))
-	
-	ent2 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST2_NOV23_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>% 
-		mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))%>%
-		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
-	
-	ent3 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST3_NOV23_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')
-	
-	ent4 <-read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST4_NOV23_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
-		mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))%>%
-		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
-	
-	ent5 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST5_24112023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
-		mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))
-	
-	ent6 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST6_NOV24_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
-		mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))
+	# NOVEMBER 2023 Engraulis encrasicolus 
+		ent1 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST1_NOV23_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
+			mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))
+		
+		ent2 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST2_NOV23_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>% 
+			mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))%>%
+			mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+		
+		ent3 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST3_NOV23_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')
+		
+		ent4 <-read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST4_NOV23_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
+			mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))%>%
+			mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+		
+		ent5 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST5_24112023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
+			mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))
+		
+		ent6 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST6_NOV24_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
+			mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))
 
-	ent7 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST7_NOV24_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
-		mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))%>%
+		ent7 <- read_excel('qPCRresults/2023Engraulisencrasicolus/qPCRmax_output_excelfiles/En.encras_TEST7_NOV24_2023.xlsx', sheet = 'Results',range = 'A11:R59', .name_repair = 'universal', col_types='text')%>%
+			mutate(Sample.Name = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ Sample.Name))%>%
+			mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		all_engraulis <- bind_rows(ent1, ent2, ent3, ent4, ent5, ent6, ent7)%>%
+			dplyr::select(-Exclude, -Plate.Control)%>%
+			mutate(sp = 'engraulis')
+		all_engraulis
+		all <- left_join(all_engraulis, ext2, by='Sample.Name')%>%
+			 mutate(sampleID = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ sampleID))%>%
+			 rename(replicateID=sampleID)
+
+	# APRIL 2024 
+		# Standard Curve tests 
+		standards1 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
 		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
 
-	####### YOU LEFT OFF HERE TRYING TO BIND ROWS OF ENGRAULIS QPCR TESTS 6/12/2023 13:44
-	all_engraulis <- bind_rows(ent1, ent2, ent3, ent4, ent5, ent6, ent7)%>%
-		dplyr::select(-Exclude, -Plate.Control)%>%
-		mutate(sp = 'engraulis')
-	all_engraulis
-	all <- left_join(all_engraulis, ext2, by='Sample.Name')%>%
-		 mutate(sampleID = case_when(Assay.Role != 'Unknown' ~ paste0(Assay.Role,'_',Quantity), Assay.Role == 'Unknown' ~ sampleID))%>%
-		 rename(replicateID=sampleID)
+		standards2 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		standards3 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+
+		# Engraulis encrasicolus
+		assay1 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		assay2 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		assay3 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		# Mixed Species 
+		assay4 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		# Sprattus sprattus
+		assay5 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		assay6 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		assay7 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+		
+		# Scomber scombrus
+		assay8 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		assay9 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+		assay10 <- read_excel('qPCRresults/2024assays/.xlsx', sheet = 'Results',range = 'A41:X138', .name_repair = 'universal', col_types='text')%>%
+		rename(Sample.Name = 'Sample Name')%>%
+		mutate(Sample.Name = case_when(Task != 'Unknown' ~ paste0(Task,'_',Quantity), Task == 'Unknown' ~ Sample.Name))%>%
+		mutate_if(is.character,str_replace_all,pattern='M',replacement='MP')
+
+
 
 	### save tidyed dfs 
 		write.csv(ent1,'qPCRresults/2023Engraulisencrasicolus/individual_assays/tidyed_results_En.encras_TEST1_NOV23_2023.csv')
