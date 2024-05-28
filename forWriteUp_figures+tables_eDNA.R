@@ -42,26 +42,24 @@ world
 	
 	uk <- ggplot()+
 		geom_sf(data = world%>%filter(subregion=='Northern Europe'))+
-		theme_bw()+
-		theme(axis.text.y = element_blank(),axis.ticks.y = element_blank(),axis.text.x = element_blank(),axis.ticks.x = element_blank())+
+		theme_void()+
+		theme(axis.text.y = element_blank(),axis.ticks.y = element_blank(),axis.text.x = element_blank(),axis.ticks.x = element_blank(), panel.border = element_rect(fill=NA, colour = 'black'))+
 		geom_rect(aes(xmin=-6.5,xmax=-4.1,ymin=49.8,ymax=50.94),col='goldenrod2',fill='goldenrod2',alpha=0.4,lwd=.8)
 	uk
 
 	sample_location_extractions <- ggplot()+
-		geom_sf(data=coastalwater,fill='cadetblue4', lwd=0.5, alpha = 0.2)+
-		geom_sf(data=kernios,fill='grey82', lwd=0.5)+
-		geom_sf(data=st_jitter(st_geometry(sp1%>%distinct(samplID, .keep_all = TRUE)), factor=0.001),size=3,pch=20, alpha = 0.5)+
-		()+
+		geom_sf(data=coastalwater,fill='cadetblue4', col=NA, lwd=0.5, alpha = 0.5)+
+		geom_sf(data=kernios, lwd=0.5)+
+		geom_sf(data=st_jitter(st_geometry(sp1%>%distinct(samplID, .keep_all = TRUE)), factor=0.005), col='#000A52',size=3,pch=20, alpha = 0.5)+
 		theme_bw() 
 	sample_location_extractions # this is at the sample replicate level
 
-	ggdraw()+
+	map <- ggdraw()+
 		draw_plot(sample_location_extractions)+
-		draw_plot(uk, height=0.5, x=-.75, y=0.5)
+		draw_plot(uk, height=0.4, x = -0.29, y = 0.52)
 	map
-	### you left off here spending way to long on makign an inset map
 
-	ggsave(map,file = 'EDNA/data_edna/figures_and_tables/testing.png',device='png',units='in',dpi=200,height=9,width=6)
+	ggsave(map,file = 'EDNA/data_edna/figures_and_tables/samplinglocations_2023_withUKinset.png',device='png',units='in',dpi=850,height=5,width=5)
 
 	## Distance from shore 
 

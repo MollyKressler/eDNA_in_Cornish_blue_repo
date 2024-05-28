@@ -20,6 +20,7 @@ pacman::p_load(tidyverse,lubridate,readr,readxl,lubridate,stringr)
 #################################
 ## - Calculate Copies   
 #################################
+## updated may 2024 with new method for calculatign copy numbers 
 
 ## import species tidyed qPCR results 
 	all_engr <- read.csv('qPCRresults/2023Engraulisencrasicolus/tidyed_results_En.encras_TESTS_1to7_NOV2023.csv')%>%
@@ -44,15 +45,56 @@ pacman::p_load(tidyverse,lubridate,readr,readxl,lubridate,stringr)
 	all_eng <- all_engr %>% filter(Assay.Role == 'Unknown')%>%
 		mutate(species = 'engraulis')
 
+		## make a controls test set 
+		testset <- controls_engraulis %>% dplyr::select(testID,Well, Sample.Name,Assay.Role, Cq)	
+		write.csv(testset, 'testset_of_controls_for_writing_controlsPipe_may2024.csv')
 
 ## row by row, write tidy function using NEBio standard curve equation (species specific), into new column Species.Copies, e.g. Engraulis.copies. ## Updating 15 Feb 2024 based on readings. New method: (1) calculate copies for each technical rep, save this df separately; (2) take the mean copy number for all the technical reps per replicate sample; (3) Calculate copy number for standards and NTCs 
 
 	## create a function to calculate copies with species-specific standard curve data 
-	calculate_copies <- function(intercept, slope, Cq.Mean) {
-		copies <- 10^((Cq.Mean - intercept)/slope)
-		return(copies)
-		}
+ 	 calculate_copies <- function(intercept, slope, Cq.adj) {
+    	copies <- 10^((Cq.adj - intercept)/slope)
+    	return(copies)
+    	}
 
+## pipe to calculate copies taking into account reliability of the technical replicates, and the LOQ and LOD
+
+	output <- group_by(all_eng,sp,Sample.Name) %>%
+	  mutate(., loq_check = ifelse(Cq <= LOQ & !is.na(Cq), 1, NA)) %>%
+	  mutate(., loq_check = ifelse(any(loq_check == 1), 1, NA)) %>%
+	  mutate(Cq = ifelse(loq_check == 1 & is.na(Cq), LOD, Cq))%>%
+	  mutate(., reliable = ifelse(loq_check == is.numeric(loq_check), TRUE))%>%
+	  mutate(reliable = replace_na(reliable,FALSE))%>%
+	  mutate(Cq.adj = case_when(reliable == 'TRUE' ~ as.numeric(Cq), reliable == 'FALSE' ~ 0))%>%
+	  mutate(copies = if_else(reliable, calculate_copies(intercept, slope, Cq.adj), NA_real_))%>%
+	  mutate(copies.avg = if_else(reliable, mean(copies), NA_real_))
+
+	summary(output)
+
+
+# test for controls, could it be combined with the main data
+c1 <- controls_engraulis %>% dplyr::select(testID,Well, Sample.Name,Assay.Role, Cq)
+c1
+
+output <- group_by(controls_engraulis, Sample.Name) %>%
+	  mutate(., loq_check = ifelse(Cq <= LOQ & !is.na(Cq), 1, NA)) %>%
+	  ungroup()%>%
+	  group_by(Sample.Name) %>%
+	  mutate(., loq_check = ifelse(any(loq_check == 1), 1, NA)) %>%
+	  ungroup()%>% mutate(Cq = ifelse(loq_check == 1 & is.na(Cq), LOD, Cq))%>%group_by(Sample.Name) %>%
+	  mutate(., reliable = ifelse(loq_check == is.numeric(loq_check), TRUE))%>%
+	  mutate(reliable = replace_na(reliable,FALSE))%>%
+	  mutate(Cq.adj = case_when(reliable == 'TRUE' ~ as.numeric(Cq), reliable == 'FALSE' ~ 0))%>%
+	  ungroup()%>%
+	  group_by(Sample.Name) %>%
+	  mutate(copies = if_else(reliable, calculate_copies(intercept, slope, Cq.adj), NA_real_))%>%
+	  mutate(copies.avg = if_else(reliable, mean(copies), NA_real_))
+
+	summary(output)
+
+
+
+   ## deprecated approach. Fine but does not account for LOQ and LOD. 
 	## (1) Calculate copies for each technical replicate of replicate samples, use all_eng df. As of 15/2/24, where Cq = NA, set this equal to 0. 
 		e.techreps <- all_eng %>%
 		group_by(Sample.Name) %>%
@@ -86,8 +128,8 @@ pacman::p_load(tidyverse,lubridate,readr,readxl,lubridate,stringr)
 				efficiency = as.numeric(neb %>% filter(sp == 'engraulis') %>% select(efficiency)))%>% # bring in the standard curve information and statistics
 			mutate(engraulis.copies = calculate_copies(intercept, slope, Cq.Mean))%>% # calculate copies using linear formula
 			replace_na(list(engraulis.copies = 0)) # where Cq.Mean was NA, and therefore copies is NA, replace with a 0. 
-			
-		## save
+	
+	## save
 			write.csv(controls_engrauli, 'resultsANDcopies_perStandard_andNegControl_En.encras_TESTS_1to7_NOV2023.csv') 
 
 

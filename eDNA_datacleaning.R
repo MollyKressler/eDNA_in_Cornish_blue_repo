@@ -60,7 +60,6 @@ pacman::p_load(sf,dplyr,lubridate,readr,readxl,lubridate,ggplot2,patchwork,cowpl
 
 	d1 <- left_join(e2, samp%>%
 		dplyr::select(eventID,Latitude,Longitude,recorded.by,vessel,passengers,time.timeIN,timeOUT), by = 'eventID',relationship='many-to-one',multiple='first')%>%
-		dplyr::select(-blueshark.presence,-blueshark.Cq,-blueshark.copies,-engraulis.presence, -engraulis.Cq, -engraulis.copies)%>%
 		mutate(timeOUT = ifelse(is.na(timeOUT),time.timeIN,timeOUT))%>%
 	 	mutate(method.type = case_when(startsWith(as.character(method.subsample),'W') ~ 'waterbottle', TRUE ~ 'metaprobe'))	 	## mutate for timeOUT fills in the timeout column for water bottles to match the time.timeIN value. 
 	head(d1)

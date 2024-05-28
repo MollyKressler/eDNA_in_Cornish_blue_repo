@@ -94,29 +94,58 @@ data4
     slope = -5
     intercept = 0.05
 
+rep <- c(10.2, 10.2,10.2,10.2,10.3,10.3,10.3,10.3,9.1,9.1,9.1,9.1)
+well <- c('A1','A2','A3','A4','B1','B2','B3','B4','C1','C2','C3','C4')
+Cq <- c(NA,NA,32,29,NA,15,16,14,NA,NA,NA,34)
+Target.Name = rep('sp2',12)
 
-input <- data.frame(data)%>%dplyr::select(-well)
+sp1 <- cbind(rep, well, Cq, Target.Name)
+sp2 <- cbind(rep, well, Cq*.9, Target.Name)
+sp3 <- cbind(rep, well, Cq*.5, Target.Name)
+data <- rbind(sp1, sp2, sp3)
 
-output <- group_by(input, rep) %>%
-  mutate(., loq_check = ifelse(Cq <= LOQ & !is.na(Cq), 1, NA)) %>%
-  ungroup()%>%
-  group_by(rep) %>%
-  mutate(., loq_check = ifelse(any(loq_check == 1), 1, NA)) %>%
-  ungroup()%>% mutate(Cq = ifelse(loq_check == 1 & is.na(Cq), LOD, Cq))%>%group_by(rep) %>%
-  mutate(., reliable = ifelse(loq_check == is.numeric(loq_check), TRUE))%>%
-  mutate(reliable = replace_na(reliable,FALSE))%>%
-  mutate(Cq.adj = case_when(reliable == 'TRUE' ~ as.numeric(Cq), reliable == 'FALSE' ~ 0))%>%
-  ungroup()%>%
-  group_by(rep) %>%
-  mutate(copies = if_else(reliable, calculate_copies(intercept, slope, Cq.adj), NA_real_))%>%
-  mutate(copies.avg = if_else(reliable, mean(copies), NA_real_))
+input <- data.frame(data) 
+
+output <- group_by(input, Target.Name, rep) %>%
+    mutate(., loq_check = ifelse(Cq <= LOQ & !is.na(Cq), 1, NA)) %>%
+    mutate(., loq_check = ifelse(any(loq_check == 1), 1, NA)) %>%
+    mutate(Cq = ifelse(loq_check == 1 & is.na(Cq), LOD, Cq))%>%
+    mutate(., reliable = ifelse(loq_check == is.numeric(loq_check), TRUE))%>%
+    mutate(reliable = replace_na(reliable,FALSE))%>%
+    mutate(Cq.adj = case_when(reliable == 'TRUE' ~ as.numeric(Cq), reliable == 'FALSE' ~ 0))%>%
+    mutate(copies = if_else(reliable, calculate_copies(intercept, slope, Cq.adj), NA_real_))%>%
+    mutate(copies.avg = if_else(reliable, mean(copies), NA_real_))
 
 output # yep!
 
+
+
+
+
+## the next step would be to calculate the sample ID average copy number. 
+
 # data pre-requisites
   ## data be in a data frame
-  ## has the following columns: samp rep ID, well number (OR tech rep ID), and Cq.  
+  ## has the following columns: sample replicate ID number, Cq. 
+  ## tech reps are in rows, and don't need an identifying ID.
 
+
+##### 
+## - controls need their own version because their structure is different
+#####
+## Still need the LOQ checks but you don't need the reliability testing. Could leave it in for checks. But in this case, if the NTC comes back as 0, then it is 0 because we KNOW it should be 0. Need to modify. 
+## modify for NTCs: where Assay.Role == NTC & Cq != NA & Cq >= LOQ, set to 0.
+
+c <- read.csv('testset_of_controls_for_writing_controlsPipe_may2024.csv')%>%
+      dplyr::select(-X)%>%
+      mutate(Assay.Role = case_when(Assay.Role == 'Negative' ~ 'NTC', Assay.Role != 'Negative' ~ Assay.Role))
+c
+
+output <- group_by(c, Target.Name, testID) %>%
+  mutate(Cq.adj = ifelse(Assay.Role == 'NTC' & Cq >= LOQ, NA_real_, Cq))%>% # have to add this line in for the cases when NTC's (or anything) self-prime past the LOQ
+  mutate(copies = calculate_copies(intercept, slope, Cq.adj))
+
+output # yep!
 
 
 
