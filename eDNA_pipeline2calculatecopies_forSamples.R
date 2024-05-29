@@ -22,7 +22,7 @@
 #########
 
 ## (1) Import and clean datasets from qPCR assay output files, filtering out Laboratory NTCs and Standards/Positives. Done for each species, saving individual species files, before collating species and saving as one large file. 
-## (2) Calculate copies per technical replicate, and per sampling replicate. 
+## (2) Calculate copies per technical replicate, and per sampling replicate, for field samples and field controls. Then, calculate sampling event average copy number excluding the field controls, but preserving these
 
 #########
 ## - Step 0: Define and Load workspace
@@ -35,28 +35,31 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 ## - Step 1: tidying exports from qPCR machine
 #########
 	## Standard Curves, all species
-	neb <- read_excel('qPCRresults/standard_curve_equations_qPCR_2023species.xlsx',.name_repair = 'universal', col_types = c('text','text','numeric','numeric','numeric','numeric','date'))#%>%
-		mutate(dateofassay=as_date(dateofassay), LOQ = as.numeric(LOQ),LOD = as.numeric(LOD))
+	neb <- read_excel('qPCRresults/standard_curve_equations_qPCR_2023species.xlsx', sheet = 'Sheet1', range = 'A1:I3',.name_repair = 'universal', col_types = c('text','text','numeric','numeric','numeric','numeric','date','numeric','numeric'))%>%
+		mutate(dateofassay=as_date(dateofassay)))
 	neb
 
 	## Engraulis
 	eng1 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
-		filter(Assay.Role == 'STANDARD')%>%
+		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'eng1')%>%
-		left_join(., neb, by = c('Target.Name'='sp')) 
+		left_join(., neb, by = c('Target.Name'='sp'))
 
 	eng2 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'eng2')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	eng3 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'eng3')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	## Scomber
@@ -64,18 +67,21 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'sco1')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	sco2 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'sco2')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	sco3 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'sco3')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	## Alopias
@@ -83,18 +89,21 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'alo1')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	alo2 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'alo2')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	alo3 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'alo3')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	## Lamna 
@@ -102,18 +111,21 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'lam1')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	lam2 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'lam2')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	lam3 <- read_excel('qPCRresults/ESI_assays_spring2024/.xlsx', sheet = 'Results',range = 'A41:S104', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'lam3')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 
@@ -122,6 +134,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'Unknown')%>%
+		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA, TRUE ~ Cq))%>%
 		mutate(testID = 'combo')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	
@@ -141,18 +154,31 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
     	return(copies)
     	}
 
-    ## apply function in accordance with LOQ and LOD criteria
-	output <- group_by(data, Target.Name, Sample.Name) %>%
-	    mutate(., loq_check = ifelse(Cq <= LOQ & !is.na(Cq), 1, NA)) %>%
-	    mutate(., loq_check = ifelse(any(loq_check == 1), 1, NA)) %>%
-	    mutate(Cq = ifelse(loq_check == 1 & is.na(Cq), LOD, Cq))%>%
-	    mutate(., reliable = ifelse(loq_check == is.numeric(loq_check), TRUE))%>%
-	    mutate(reliable = replace_na(reliable,FALSE))%>%
-	    mutate(Cq.adj = case_when(reliable == 'TRUE' ~ as.numeric(Cq), reliable == 'FALSE' ~ 0))%>%
-	    mutate(copies = if_else(reliable, calculate_copies(intercept, slope, Cq.adj), NA_real_))%>%
-	    mutate(copies.avg = if_else(reliable, mean(copies), NA_real_))
+    ## apply function in 2 parts in accordance with LOQ and LOD criteria. (A) First to calculate tech rep average copies, and then (B) the Field Sample and Field Control average (average of tech reps), then (C) join dataframes. 
+	# (A)
+		output <- group_by(data, Target.Name, Sample.Name) %>%
+		    mutate(., loq_check = ifelse(Cq <= LOQ & !is.na(Cq), 1, NA)) %>%
+		    mutate(., loq_check = ifelse(any(loq_check == 1), 1, NA)) %>%
+		    mutate(Cq = ifelse(loq_check == 1 & is.na(Cq), LOD, Cq))%>%
+		    mutate(., reliable = ifelse(loq_check == is.numeric(loq_check), TRUE))%>%
+		    mutate(reliable = replace_na(reliable,FALSE))%>%
+		    mutate(Cq.adj = case_when(reliable == 'TRUE' ~ as.numeric(Cq), reliable == 'FALSE' ~ 0))%>%
+		    mutate(copies = if_else(reliable, calculate_copies(intercept, slope, Cq.adj), NA_real_))%>%
+		    mutate(copies.techrepavg = if_else(reliable, mean(copies), NA_real_))
+	# (B) 
+		fieldsamp_averagecopies <- output %>%
+		  filter(grepl("\\.1$|\\.2$|\\.3$", rep)) %>%
+		  group_by(Target.Name, samp) %>%
+		  summarise(fieldsamples.copies = mean(copies.techrepavg, na.rm = TRUE))
+		fieldsamp_averagecopies
 
-	summary(output)
+	# (C) 
+		output2 <- output %>%
+		  left_join(fieldsamp_averagecopies, by = c("Target.Name", "samp")) %>%
+		  mutate(copies.sampavg = if_else(grepl("\\.4$", rep), copies.techrepavg, fieldsamples.copies))%>%
+		  select(-fieldsamples.copies)
+		output2%>%print(n=20)
+
 
 
 
@@ -169,7 +195,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 
 	## join
 
-	joined <- left_join(output, meta.sf, by = c(Sample.Name = eppendorfID)) # this might have to be done with st_join. tbd. 
+	joined <- left_join(output2, meta.sf, by = c(Sample.Name = eppendorfID)) # this might have to be done with st_join. tbd. 
 
 
 

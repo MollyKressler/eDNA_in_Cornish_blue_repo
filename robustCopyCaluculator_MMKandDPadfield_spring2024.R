@@ -94,19 +94,21 @@ data4
     slope = -5
     intercept = 0.05
 
-rep <- c(10.2, 10.2,10.2,10.2,10.3,10.3,10.3,10.3,9.1,9.1,9.1,9.1)
-well <- c('A1','A2','A3','A4','B1','B2','B3','B4','C1','C2','C3','C4')
-Cq <- c(NA,NA,32,29,NA,15,16,14,NA,NA,NA,34)
-Target.Name = rep('sp2',12)
-
+rep <- c(10.1,10.1,10.1,10.1,10.2, 10.2,10.2,10.2,10.3,10.3,10.3,10.3,10.4,10.4,10.4,10.4)
+well <- c('A1','A2','A3','A4','B1','B2','B3','B4', 'C1','C2', 'C3', 'C4', 'D1','D2', 'D3', 'D4')
+Cq <- c(NA,NA,32,29,NA,15,16,14,NA,26,28,25,NA,14,18,15)
+Target.Name = rep('sp1',16)
 sp1 <- cbind(rep, well, Cq, Target.Name)
+Target.Name = rep('sp2',16)
 sp2 <- cbind(rep, well, Cq*.9, Target.Name)
+Target.Name = rep('sp3',16)
 sp3 <- cbind(rep, well, Cq*.5, Target.Name)
 data <- rbind(sp1, sp2, sp3)
 
-input <- data.frame(data) 
+input <- as_tibble(data.frame(data))
 
 output <- group_by(input, Target.Name, rep) %>%
+    mutate(samp = sub("\\..*", "", rep)) %>%
     mutate(., loq_check = ifelse(Cq <= LOQ & !is.na(Cq), 1, NA)) %>%
     mutate(., loq_check = ifelse(any(loq_check == 1), 1, NA)) %>%
     mutate(Cq = ifelse(loq_check == 1 & is.na(Cq), LOD, Cq))%>%
@@ -114,13 +116,23 @@ output <- group_by(input, Target.Name, rep) %>%
     mutate(reliable = replace_na(reliable,FALSE))%>%
     mutate(Cq.adj = case_when(reliable == 'TRUE' ~ as.numeric(Cq), reliable == 'FALSE' ~ 0))%>%
     mutate(copies = if_else(reliable, calculate_copies(intercept, slope, Cq.adj), NA_real_))%>%
-    mutate(copies.avg = if_else(reliable, mean(copies), NA_real_))
+    group_by(Target.Name,rep)%>%
+    mutate(copies.techrepavg = if_else(reliable, mean(copies), NA_real_))# calculates the average for each sampling replicate (mean(tech rep 1, tech rep 2, tech rep 3))
+output
 
-output # yep!
+# Calculate the average value for Field samples (reps ending with .1, .2., (and .3 in real data but not here))
+fieldsamp_averagecopies <- output %>%
+  filter(grepl("\\.1$|\\.2$|\\.3$", rep)) %>%
+  group_by(Target.Name, samp) %>%
+  summarise(fieldsamples.copies = mean(copies.techrepavg, na.rm = TRUE))
+fieldsamp_averagecopies
 
-
-
-
+# Join the average values back to the processed data and carry over the Field Control average from the average of the technical replicates.
+output2 <- output %>%
+  left_join(fieldsamp_averagecopies, by = c("Target.Name", "samp")) %>%
+  mutate(copies.sampavg = if_else(grepl("\\.4$", rep), copies.techrepavg, fieldsamples.copies))%>%
+  select(-fieldsamples.copies)
+output2%>%print(n=20)
 
 ## the next step would be to calculate the sample ID average copy number. 
 
@@ -128,6 +140,7 @@ output # yep!
   ## data be in a data frame
   ## has the following columns: sample replicate ID number, Cq. 
   ## tech reps are in rows, and don't need an identifying ID.
+
 
 
 ##### 
