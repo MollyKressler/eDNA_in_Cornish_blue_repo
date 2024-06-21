@@ -31,15 +31,13 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 	data <- rbind(data1, data2) %>% filter(Rn != 'NA') 
 	unique(data$Target.Name)
 
-	write.csv(data, 'datafordan_ampplots.csv')
-
 #######
 ## - Make plots
 #######
 
 	# engraulis #799ecb, scomber #003a78, prio #84cb7b, alo #477939, lamna #154200
 
-	ggplot(data%>%filter(Target.Name == 'Lamna'), aes(x = Cycle, y = Rn, group = Quantity))+
+	ggplot(data%>%filter(Target.Name == 'Lamna'), aes(x = Cycle, y = Rn, group = Quantity, col = '#154200'))+
 		geom_smooth(span = 0.3, method = 'gam', se = FALSE)+
 		scale_y_continuous(limits = c(-0.1,4))+
 		theme_bw()
