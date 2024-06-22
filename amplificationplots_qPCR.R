@@ -28,8 +28,8 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 	data2 <- left_join(amp2, setup2%>%select(-Target.Name), relationship = 'many-to-one', by = 'Well')
 	data2
 
-	data <- rbind(data1, data2) %>% filter(Rn != 'NA') 
-	unique(data$Target.Name)
+	data <- rbind(data1, data2) %>% filter(Rn != 'NA')%>%
+		mutate(Target.Name = case_when(Target.Name == 'Prionance' ~ 'Prionace', Target.Name != 'Prionance' ~ Target.Name))
 
 #######
 ## - Make plots
@@ -37,15 +37,13 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 
 	# engraulis #799ecb, scomber #003a78, prio #84cb7b, alo #477939, lamna #154200
 
-	ggplot(data%>%filter(Target.Name == 'Lamna'), aes(x = Cycle, y = Rn, group = Quantity, col = '#154200'))+
-		geom_smooth(span = 0.3, method = 'gam', se = FALSE)+
-		scale_y_continuous(limits = c(-0.1,4))+
-		theme_bw()
+	plot<- 	ggplot(data, aes(x = Cycle, y = Delta.Rn, group = interaction(Quantity, Target.Name), col = Target.Name))+
+	  geom_smooth(span = 0.3, method = 'gam', se = FALSE, lwd = 0.7) +
+	  scale_color_manual(values = c('#477939', '#799ecb', '#154200', '#84cb7b', '#003a78'))+
+	  theme_bw() +
+	  theme(legend.position = 'none')+
+	  facet_wrap(~Target.Name, scales = 'free_y', labeller = labeller(.multi_line = FALSE), ncol=1,dir = 'v')
 
-		col = c('Engraulis', 'Scomber', 'Prionace', 'Alopias', 'Lamna')
-		values = c('#799ecb', '#003a78', '#84cb7b', '#477939', '#154200')
+	  ggsave(plot, file = 'figures_and_tables/standards_amplifications.png', device='png',units='in',dpi=450,height=8,width=3)
 
-## not working
-
-
-
+	

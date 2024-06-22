@@ -100,21 +100,21 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'UNKNOWN')%>%
 		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA_character_, TRUE ~ Cq))%>%
-		mutate(testID = 'prio1')%>%
+		mutate(testID = 'prio1', Target.Name = 'Prionace')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	prio2 <- read_excel('qPCRresults/ESI_assays_spring2024/12062024-KRESSLER-PRIONACE-ASSAY8.xlsx', sheet = 'Results',range = 'A41:L137', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'UNKNOWN')%>%
 		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA_character_, TRUE ~ Cq))%>%
-		mutate(testID = 'prio2')%>%
+		mutate(testID = 'prio2', Target.Name = 'Prionace')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	prio3 <- read_excel('qPCRresults/ESI_assays_spring2024/12062024-KRESSLER-PRIONACE-ASSAY9.xlsx', sheet = 'Results',range = 'A41:L137', .name_repair = 'universal', col_types='text')%>%
 		rename(Cq = CT, Assay.Role = Task)%>%
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'UNKNOWN')%>%
 		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA_character_, TRUE ~ Cq))%>%
-		mutate(testID = 'prio3')%>%
+		mutate(testID = 'prio3', Target.Name = 'Prionace')%>%
 		left_join(., neb, by = c('Target.Name'='sp')) 
 	## Alopias
 	alo1 <- read_excel('qPCRresults/ESI_assays_spring2024/10062024-KRESSLER-ALOPIAS-ASSAY10.xlsx', sheet = 'Results',range = 'A41:L137', .name_repair = 'universal', col_types='text')%>%
@@ -167,7 +167,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'UNKNOWN')%>%
 		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA_character_, TRUE ~ Cq))%>%
-		mutate(testID = 'combo1')%>%
+		mutate(testID = 'combo1', Target.Name = case_when(Target.Name == 'Prionance' ~ 'Prionace', Target.Name != 'Prionance' ~ Target.Name))%>%
 		left_join(., neb, by = c('Target.Name'='sp')) %>%
 		filter(str_detect(Sample.Name, 'M'))
 	
@@ -176,7 +176,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'UNKNOWN')%>%
 		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA_character_, TRUE ~ Cq))%>%
-		mutate(testID = 'combo')%>%
+		mutate(testID = 'combo2', Target.Name = case_when(Target.Name == 'Prionance' ~ 'Prionace', Target.Name != 'Prionance' ~ Target.Name))%>%
 		left_join(., neb, by = c('Target.Name'='sp')) %>%
 		filter(str_detect(Sample.Name, 'M'))
 
@@ -186,7 +186,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		mutate(Sample.Name = case_when(!is.na(Sample.Name) ~ Sample.Name, is.na(Sample.Name) ~ paste0(Assay.Role,'_',Quantity)))%>%
 		filter(Assay.Role == 'UNKNOWN')%>%
 		mutate(Cq = case_when(Cq == 'Undetermined' ~ NA_character_, TRUE ~ Cq))%>%
-		mutate(testID = 'combo')%>%
+		mutate(testID = 'combo3', Target.Name = case_when(Target.Name == 'Prionance' ~ 'Prionace', Target.Name != 'Prionance' ~ Target.Name))%>%
 		left_join(., neb, by = c('Target.Name'='sp')) %>%
 		filter(str_detect(Sample.Name, 'M'))
 
@@ -208,7 +208,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 	## save
 	
 		write.csv(data, 'qPCRresults/collatedqPCRresults_2024_cornwallspecies.csv')
-
+		data <- read.csv('qPCRresults/collatedqPCRresults_2024_cornwallspecies.csv')
 #########
 ## - Step 2: calculate copies
 #########
@@ -245,7 +245,6 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		  dplyr::select(-fieldsamples.copies)
 		output2%>%print(n=20)
 
-
 #########
 ## - Step 3: join to metadata and spatial information
 #########
@@ -255,7 +254,6 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 	meta.sf <- st_as_sf(st_read(('eDNA_data_meta_and_qPCR_2023.shp'),crs='WGS84'))%>%
 		rename(sampleID = samplID, eppendorfID = eppndID, ratio260.280 = r260_28, ratio260.230 = r260_23, sampledate = sampldt, method.subsample = mthd_sb, sampling.date = smplng_, recorded.by = rcrdd_b, passengers = pssngrs, time.timeIN = tm_tmIN, method.type = mthd_ty)
 
-
 		## Don't re-run. Here for documentation. meta.sf is missing a data entry for eppendorf 13.4 which is the field control for 15082023-R-B. Construct it and row bind it to meta.sf. 
 
 			m <- meta.sf %>% 
@@ -263,12 +261,13 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 				mutate(sampleID = '15082023-R-B-WBT13.4', dnaCont = 0, ratio260.280 = 1.250, ratio260.230 = -0.068, method.subsample = 'WBT1.4', eppendorfID = '13.4')
 			mmm <- rbind(m, meta.sf)
 			
-			#st_write(mmm, 'eDNA_data_meta_and_qPCR_2023.shp', driver = 'ESRI Shapefile', append = FALSE)
-			#st_write(mmm, 'eDNA_data_meta_and_qPCR_2023.csv', driver = 'CSV', append = FALSE)
+			st_write(mm, 'eDNA_data_meta_and_qPCR_2023.shp', driver = 'ESRI Shapefile', append = FALSE)
+			st_write(mmm, 'eDNA_data_meta_and_qPCR_2023.csv', driver = 'CSV', append = FALSE)
 
 	## join
 
-	joined <- left_join(output2, meta.sf%>%mutate(eppendorfID = str_remove(eppendorfID, '[P]')), by = c('Sample.Name' = 'eppendorfID')) # this might have to be done with st_join. tbd. 
+	joined <- left_join(output2, meta.sf%>%mutate(eppendorfID = str_remove(eppendorfID, '[P]')), by = c('Sample.Name' = 'eppendorfID'))%>%
+		st_as_sf 
 
 	joined
 	joined%>%filter(is.na(sampleID))
@@ -277,12 +276,11 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 ## - Step 4: save data 
 #########
 
-	saveRDS(joined, 'qPCRresults/processedQPCRresults_cornwallspecies_june2024.Rdata')
+	st_write(joined, 'qPCRresults/processedQPCRresults_cornwallspecies_june2024.csv', driver = 'CSV', delete_dsn = TRUE, delete_layer = TRUE)
+	st_write(joined, 'qPCRresults/processedQPCRresults_cornwallspecies_june2024.shp', driver = 'ESRI Shapefile', delete_dsn = TRUE, delete_layer = TRUE)
 
-
-
-
-
+  s <- st_as_sf(st_read('qPCRresults/processedQPCRresults_cornwallspecies_june2024.shp'))%>%
+		rename(Assay.Role = Assy_Rl, Target.Name = Trgt_Nm, sampleID = samplID, ratio260.280 = r260_28, ratio260.230 = r260_23, sampledate = sampldt, method.subsample = mthd_sb, sampling.date = smplng_, recorded.by = rcrdd_b, passengers = pssngrs, time.timeIN = tm_tmIN, method.type = mthd_ty, Reporter = Reportr, Quencher = Quenchr, Sample.Name = Smpl_Nm, intercept = intrcpt, r.squared = r_squrd, efficiency = effcncy, loq_check = lq_chck, reliable = reliabl, copies.techrepavg = cps_tch, copies.sampavg = cps_smp, Well.Position = Wll_Pst)
 
 
 
