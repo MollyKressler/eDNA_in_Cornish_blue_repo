@@ -229,25 +229,16 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 
 
 #########
-## - Step 3: join to Field Controls
+## - Step 3: format for tables later
 #########
   output3 <- read.csv('qPCRresults/processedqPCRresults_2024_labcontrols_standards_cornwallspecies.csv')%>%
   	dplyr::select(-X)%>%
-  	mutate(eventID = NA_character_,method.type = NA_character_,sampleID = NA_character_,dnaCont = case_when(Assay.Role == 'STANDARD' ~ Quantity, Assay.Role == 'NTC' ~ 0, FALSE ~ NA_real_),ratio260.280 = NA_real_,ratio260.230 = NA_real_, loq_check = 1, reliable = TRUE,copies.sampavg = copies,copies.techrepavg= copies)%>%
-  	mutate(Quantity = case_when(Quantity >10000 ~ 1000000, Quantity < 10000 ~ Quantity))
-
-  field.controls <- read.csv('qPCRresults/processedQPCRresults_cornwallspecies_june2024.csv')%>%
-	  filter(grepl("\\.4$", Sample.Name))%>%
-  	dplyr::select(-X)%>%
-	  dplyr::select(Well:ratio260.230, 'method.type')
-  head(field.controls)
-
-	c <- bind_rows(field.controls,output3)
-
+  	mutate(eventID = NA_character_,method.type = NA_character_,sampleID = NA_character_,dnaCont = case_when(Assay.Role == 'STANDARD' ~ Quantity, Assay.Role == 'NTC' ~ 0, FALSE ~ NA_real_),ratio260.280 = NA_real_,ratio260.230 = NA_real_, loq_check = 1, reliable = TRUE,copies.sampavg = copies,copies.techrepavg= copies)
+ 
   #########
 	## save
 	
-		write.csv(c, 'qPCRresults/processedqPCRresults_2024_labANDfield_controls_standards_cornwallspecies.csv')
+		write.csv(output3, 'qPCRresults/processedqPCRresults_2024_lab_controls_standards_formattedForTables_cornwallspecies.csv')
 
 
 

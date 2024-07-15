@@ -31,6 +31,15 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 	data <- rbind(data1, data2) %>% filter(Rn != 'NA')%>%
 		mutate(Target.Name = case_when(Target.Name == 'Prionance' ~ 'Prionace', Target.Name != 'Prionance' ~ Target.Name))
 
+
+	sc1 <- read_excel('qPCRresults/Scillies_assays_spring2024/27062024-KRESSLER-SCILLES-STANDARDS1.xlsx', sheet = 'Amplification Data',range = 'A41:E3881', .name_repair = 'universal')%>%
+		mutate(testID = 'scilles_standards')
+	setup_sc1 <- read_excel('qPCRresults/Scillies_assays_spring2024/27062024-KRESSLER-SCILLES-STANDARDS1.xlsx', sheet = 'Sample Setup',range = 'A41:L137', .name_repair = 'universal')%>%
+		dplyr::select(-Sample.Name, -Sample.Color, -Biogroup.Name, -Biogroup.Color)
+
+	data <- left_join(sc1, setup_sc1%>%select(-Target.Name), relationship = 'many-to-one', by = 'Well')
+	data
+
 #######
 ## - Make plots
 #######
@@ -45,5 +54,33 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 	  facet_wrap(~Target.Name, scales = 'free_y', labeller = labeller(.multi_line = FALSE), ncol=1,dir = 'v')
 
 	  ggsave(plot, file = 'figures_and_tables/standards_amplifications.png', device='png',units='in',dpi=450,height=8,width=3)
+
+	
+
+	# sardina pilcahrdus #073440, clupea harengus #a9ced1, ammodytes tobianus #2d9dbf
+
+	plot<- 	ggplot(data, aes(x = Cycle, y = Delta.Rn, group = interaction(Quantity, Target.Name), col = Target.Name))+
+	  geom_smooth(span = 0.3, method = 'gam', se = FALSE, lwd = 0.7) +
+	  scale_color_manual(values = c('#2d9dbf','#a9ced1','#073440'))+
+	  theme_bw() +
+	  theme(legend.position = 'none')+
+	  facet_wrap(~Target.Name, scales = 'free_y', labeller = labeller(.multi_line = FALSE), ncol=1,dir = 'v')
+
+	  ggsave(plot, file = 'figures_and_tables/Scilles_standards_amplifications.png', device='png',units='in',dpi=450,height=8,width=3)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	
