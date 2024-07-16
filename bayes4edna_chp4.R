@@ -106,20 +106,30 @@ fieldsamples <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwa
 		### no random effect
 		
 		modelcode_fit2_noRE <- nimbleCode({
-			# priors - taxa #
-			for(i in 1:K){
-				m[i] ~ dnorm(0, 0.01) 
-				t[i] ~ dnorm(0, 0.01) 
-			}
-						
-			# likelihood #
-			for(i in 1:N){
-				Y[i] ~ dpois(mu[i])
-				log(mu[i]) <- (m[methodID[i]]*methodID[i]) * (t[taxaID[i]]*taxaID[i]) 
-				#log(mu[i]) <- m[methodID[i]] * t[taxaID[i]] 
-
-			}
-		})
+             # priors #
+                 beta1 ~ dnorm(0, 0.01)
+                 beta2 ~ dnorm(0, 0.01)
+                 beta3 ~ dnorm(0, 0.01)
+           
+             # priors for random intercept, informative with Half-Cauchy priors for sigma
+                 beta0 ~ dnorm(0,.01) # acts as an intercept for tracing 
+                 num ~ dnorm(0, 0.0016)
+                 denom ~ dnorm(0,1)
+                 sigma.re <- abs(num/denom)
+                 tau.re <- 1/(sigma.re * sigma.re)
+             
+             # likelihood #
+             for(i in 1:N){
+                 Y[i] ~ dpois(mu[i])
+ 
+                 log(mu[i]) <- beta0 + beta1*methodID[i] + beta2*taxaID[i] +beta3*methodID[i]*taxaID[i] 
+             }
+             # derived parameters
+             b0 <- exp(beta0) # method 0, taxa 0
+             b1 <- exp(beta0 + beta1) # method 1, taxa 0
+             b2 <- exp(beta0 + beta2) # method 0, taxa 1
+             b3 <- exp(beta0 + beta1 + beta2 + beta3) # method 1, taxa 1
+         })
 
 
 		### bits and bobs for compilation
