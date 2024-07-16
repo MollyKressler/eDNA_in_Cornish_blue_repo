@@ -48,7 +48,7 @@ fieldsamples <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwa
 	data # waterbottles = 2, metaprobes = 1,fish = 1, shark = 2
 
 	## export for dave Hudson
-		write.csv(data,'EDNA/data_edna/data_for_bayes4edna.csv')
+		#write.csv(data,'EDNA/data_edna/data_for_bayes4edna.csv')
 
 	######
 	### Fit Models
@@ -83,7 +83,7 @@ fieldsamples <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwa
              for(i in 1:E){
                  e[i] ~ dnorm(0, tau.re)
              }
-                 beta0 ~ dnorm(0,.01) # acts as an intercept for tracing 
+                 #beta0 ~ dnorm(0,.01) # acts as an intercept for tracing 
                  num ~ dnorm(0, 0.0016)
                  denom ~ dnorm(0,1)
                  sigma.re <- abs(num/denom)
