@@ -9,7 +9,7 @@
 ########
 ## cleaned in pipeline documents
 
-pacman::p_load(sf,tidyverse,dplyr,ggplot2, patchwork, cowplot,lubridate,flextable, rnaturalearth, lme4, modelsummary, readr, readxl)
+pacman::p_load(sf,tidyverse,dplyr,ggplot2, patchwork, cowplot,lubridate,flextable, rnaturalearth, lme4, modelsummary, readr, readxl, ftExtra)
 
 setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/')
 
@@ -83,6 +83,31 @@ uk
 	min(sp11$dist2shore.km) # 0.03 km
 	median(sp11$dist2shore.km) # 6.149 km
 	max(sp11$dist2shore.km) # 50.585 km
+
+#########
+## - Descriptive general stats
+#########
+
+fieldsamples %>% summarise(mean = mean(log(copies+1)), sd = sd(log(copies+1))) # 0.660, 2.226
+fieldsamples %>% group_by(method.type, Target.Name) %>% summarise(mean = mean(log(copies+1)), sd = sd(log(copies+1))) # mt 0.287, 1.83; wb 0.877, 2.4
+
+plot<- fieldsamples %>% 
+	filter(copies != 0)%>%
+	mutate(taxa = as.character(case_when(Target.Name == 'Engraulis' ~ 'Fish', Target.Name == 'Scomber' ~ 'Fish',Target.Name == 'Prionace' ~ 'Shark', Target.Name == 'Alopias' ~ 'Shark')),
+		method.type = case_when(method.type == 'metaprobe' ~ 'Metaprobe', method.type == 'waterbottle' ~ 'Water Bottle'))%>%
+	group_by(method.type, taxa) %>%
+	ggplot(aes(x = interaction(method.type,taxa), y = log(copies+1), fill = method.type))+
+	geom_boxplot(alpha = 0.85)+
+	scale_fill_manual(labels = c('Metaprobe', 'Water Bottle'), values=c('#DAA507','#8EC7D2'), name = 'Method')+
+	labs(y = 'DNA yield (non-0 technical replicates, log)', x = NULL)+
+	scale_x_discrete(labels = c('Metaprobe\n\ Fish', 'Water Bottle\n\ Fish', 'Metaprobe\n\ Shark', 'Water Bottle\n\ Shark'))+
+	theme_bw()+
+	guides(fill = 'none')
+	ggsave(plot, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/boxplots_DNAyield_non0_bymethod_and_taxa.png', device = 'png', units = 'in', width = 4.5, height = 4.5, dpi = 1080)
+
+
+	
+
 
 
 #########
@@ -240,7 +265,7 @@ uk
 
 	# select down to only what we need
 
-	fs <- fieldsamples %>% dplyr::select('Assay.Role','Target.Name','Sample.Name', 'eventID', 'method.type', starts_with('copies.'), 'testID', 'Cq','reliable')%>%as_tibble()
+	fs <- fieldsamples %>% dplyr::select('Assay.Role','Target.Name','Sample.Name', 'eventID', 'method.type', starts_with('copies.'), 'testID', 'Cq','reliable', 'loq_check')%>%as_tibble()
 	c <- fieldsamples %>% dplyr::select('Assay.Role','Sample.Name', 'Target.Name','eventID', 'method.type', starts_with('copies.'), 'testID', 'Cq','reliable')%>%as_tibble()%>%
 		filter(grepl("\\.4$", Sample.Name))
 
@@ -250,21 +275,27 @@ uk
 	# calculate the number of tech reps that amplified
 
 	t.fs <- fs %>% group_by(Sample.Name, Target.Name) %>% 
-        tally(Cq != 'NA' & reliable =='0') 
+        tally(loq_check =='1') 
     
     fs2 <- left_join(fs%>%group_by(Sample.Name, Target.Name), t.fs, relationship = 'many-to-one', by=c('Sample.Name', 'Target.Name'))%>%
     	ungroup()%>%
       mutate(Amplified = paste0(n,'/3'))%>%
       mutate_if(is.numeric, round, digits = 3)%>%
-      arrange('EventID')%>%
+      filter(n>=1)%>%
       group_by(Sample.Name, Target.Name)%>%
-      slice(1)%>%
-      dplyr::select(-n)
+      slice(1)#%>% 
+      dplyr::select(-n, -Assay.Role, -Cq, -reliable, -testID, -copies.techrepavg, -loq_check)%>%
+      ungroup()%>%
+      mutate_if(is.numeric, round, digits = 3)%>%
+      flextable()%>%
+      	set_header_labels(copies.sampavg = 'Copy Number \n\ (Mean of Samp. Replicates)', Target.name = 'Target', Sample.Name = 'Sample ID')%>%
+     theme_zebra()
       fs2
 
+    save_as_docx(fs2, path ='EDNA/data_edna/figures_and_tables/qPCR_amplificationresults_samplesonly_reliableANYof3.docx')   
 
 	t.c <- c %>% group_by(Sample.Name, Target.Name) %>% 
-        tally(Cq != 'NA' & reliable =='0') 
+        tally(Cq != 'NA' & reliable =='1') 
     
     c2 <- left_join(c%>%group_by(Sample.Name, Target.Name), t.c, relationship = 'many-to-one', by=c('Sample.Name', 'Target.Name'))%>%
     	ungroup()%>%
@@ -345,14 +376,14 @@ uk
       	
       	aaa <- a %>% group_by(Target.Name,method.type)%>%
       	count()
-    	#aaa.table<-aaa %>%      	
+    	aaa.table<-aaa %>%      	
        	flextable()%>%
        	set_header_labels('Target.Name' = 'Target', 'method.type' = 'Method', n = 'No. of\n\ 3/3 Amp.' )%>%
       	autofit()%>%
       	theme_zebra()%>% 
       	align(align = 'center', part ='all')
 
-      	save_as_image(aaa.table, path ='EDNA/data_edna/figures_and_tables/no_of_replicates_per_method_amplified3of3.png', webshot = 'webshot2')
+      	save_as_image(aaa.table, path ='EDNA/data_edna/figures_and_tables/comparingmethods/no_of_replicates_per_method_amplified3of3.png', webshot = 'webshot2')
 
      ## would be better as a hist/bar plot
       	a.plot <- ggplot(data = aaa, aes(y = n, x = Target.Name, fill = method.type))+
@@ -413,13 +444,13 @@ uk
       theme(axis.text.x = element_text(angle = 40, hjust=1), plot.title = element_text(size=10, face='italic'), legend.position = 'bottom',legend.box="vertical")+
       labs(color="Species", pch = 'Method')#+
       #scale_x_date(date_breaks = 'weeks', date_labels = '%d-%b-%y')
-	  ggsave(stat_sum_event_speciesbycolor, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/stat_sum_copies_bydate_medianTECHRepcopies.png', device = 'png', units = 'in', height = 6, width = 6, dpi = 800)
+	  ggsave(stat_sum_event_speciesbycolor, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/stat_sum_copies_bydate_meanTECHRepcopies.png', device = 'png', units = 'in', height = 6, width = 6, dpi = 800)
 
 
       taxa2 <- taxa1 %>% 
       	mutate(row = row_number()) %>%
 		arrange(Target.Name, method.type) %>% 
-      	pivot_wider(names_from = method.type, names_sort = TRUE, values_from = copies.sampavg)%>%
+      	pivot_wider(names_from = method.type, names_sort = TRUE, values_from = copies.techrepavg)%>%
       	arrange(row) %>%
   		select(-row) %>%
   		mutate_at(9:10, ~replace_na(., 0)) %>%
@@ -446,7 +477,7 @@ uk
 	    ggsave(segments, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/withinsamplingEvent_MEANcopies_byMethod_bySpecies.png', device = 'png', units = 'in', height = 5, width = 6, dpi = 800)
 
 
-	both <- stat_sum_event_speciesbycolor + segments + plot_layout(guides = 'collect') & theme(legend.position = 'bottom')
+	both <- stat_sum_event_speciesbycolor + segments + plot_layout(guides = 'collect') + plot_annotation(tag_levels = 'a') & theme(legend.position = 'bottom', text = element_text(size = 15)) 
 	   ggsave(both, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/stat_sum_and_segments_speciesBYColor.png', device = 'png', units = 'in', height = 5, width = 11.5, dpi = 800)
 
 
@@ -475,7 +506,7 @@ uk
       labs(fill="Method", col= "Method", pch = 'Method')+
     scale_x_date(date_breaks = 'months', date_labels = '%b-%y')
 	
-	  ggsave(copies_time_allspp, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/copiesovertime_bymethod_ALlspecies_logTechRepCopies.png', device = 'png', units = 'in', height = 4, width = 4.5, dpi = 450)
+	  ggsave(copies_time_allspp, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/copiesovertime_bymethod_ALlspecies_logTechRepCopies2.png', device = 'png', units = 'in', height = 4, width = 4.5, dpi = 450)
 
 	## fish and shark separately 
 
@@ -525,7 +556,7 @@ uk
 		      ylab('Copies (log)')+
 		      labs(fill="Method", col= "Method", pch = 'Method')+
 		    scale_x_date(date_breaks = 'months', date_labels = '%b-%y')
-		   # all_spp_solo
+		    all_spp_solo
 
 
    #######
@@ -541,45 +572,8 @@ uk
 
 
 #########
-## -  Glmer (stat. tests): effect of method on copies over time for all species and tazon groups
+## -  Test statistics: effect of method on copies over time for all species and taxon groups
 #########
-
-# normal with log10 data 
-# presence/absence species with binomial fam. 
-# hurdle models, binomial yes/no detection, then if yes how much (gamma binomial or beta binomial)
-
-# change NAs to zeros - might do back at pipe. do models in brms. 
-	  # when all 3 tech reps are na should be zero for sampling replicate 
-	  # think about the loq-lod threshold and reassess/re-work it. overly conservative 
-# occupancy model 
-
-	# select down the df 
-		
-	data <- fieldsamples %>%
-		dplyr::select(Sample.Name, Target.Name, eventID, copies, copies.techrepavg,method.type)%>%
-		as_tibble()%>%
-    	mutate(taxa = as.character(case_when(Target.Name == 'Engraulis' ~ 'Fish', Target.Name == 'Scomber' ~ 'Fish',Target.Name == 'Prionace' ~ 'Shark', Target.Name == 'Alopias' ~ 'Shark')))
-	data
-	stopifnot(nrow(data) == 1119) # check 
-
-	# random effect on eventID
-
-	# irregardless of target species
-	lm1 <- glmer(copies.techrepavg ~ method.type * taxa + (1|eventID), data = data, family = poisson(link = 'log'))
-	lm1
-	saveRDS(lm1, 'EDNA/data_edna/glmer1_methodtype_copiesTechRep_intxTaxa_REeventid_Poisson.RDS')
-
-	summary <- modelsummary(lm1, coef_rename = c('method.typewaterbottle' = 'Water Bottle','taxaShark' = 'Sharks (detectability)','method.typewaterbottletaxaShark' = 'Water Bottle*Sharks', 'method.metaprobe' = 'Metaprobe'),fmt=3,estimate='estimate', statistic='conf.int',stars=TRUE,conf_level=0.95,output='flextable', gof_omit = 'BIC|ICC|RMSE')%>%
-		theme_zebra()%>%
-		set_header_labels('Model 1' = 'Method & Target\n\ Taxa GLMM')%>%
-	    align(align = 'center', part = 'all')%>%
-	    font(fontname = 'Arial', part = 'all')%>%
-	    fontsize(size = 10, part = 'all')%>%
-	    autofit()
-	summary # this table pairs with the geom_smooth plots 
-
-	save_as_image(summary, 'EDNA/data_edna/figures_and_tables/glmer/summary_glmer_eventIDrandom_copies_byMethod_byTaxa.png', webshot = 'webshot2')
-	save_as_docx(summary, path = 'EDNA/data_edna/figures_and_tables/glmer/summary_glmer_eventIDrandom_copies_byMethod_byTaxa.docx')
 
   
 	## t-test between techrep copies and sample rep copies, grouped by method type. 
@@ -600,6 +594,31 @@ uk
 		  unnest(tidied) %>% 
 		  select(-data, -cor)
 
+		#FLigner-Killeen test assess the homogeneity of variances, with copies as the dependent variables and the interaction of Sample.Name and Method as the grouping factor. The Chi-Squared is the test statistic and the p-value indicates whetehr the variances are equal (n.s. p) or that the variances are not equal (p<0.05)
+		# testing for where median copy number across technical replicates is not 0. 
+		pacman::p_load(car)
+		
+		flig.data <- data%>%filter(copies.techrepavg !=0)
+		flig.intx <- interaction(flig.data$Sample.Name, flig.data$method.type) # 202 unique levels
+		flig.test2 <- fligner.test(copies ~ flig.intx, data = flig.data) # Chi-squared test statistc, 95.554, df = 57, p =0.0001 - the variances are not equal between groups within samples
+		flig.test2
+			# make a boxplot to see which methods variance is greater between samples
+			flig.boxplot <- ggplot(flig.data%>%mutate(method.type = case_when(method.type == 'metaprobe'~'Metaprobe', method.type == 'waterbottle'~'Water Bottle')), aes(x = method.type, y=log(copies+0.01), fill = method.type))+
+				geom_boxplot()+
+				scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
+				theme_bw()+
+				labs(x = 'Method', y = 'DNA yield of technical replicates (log)')+
+				guides(fill = 'none')
+
+			ggsave(flig.boxplot, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/boxplot_copies_bymethod_togowithFLigTest.png', device = 'png', units = 'in', height = 4.5, width = 4.5, dpi= 850)		
+
+			# combine this boxplot with the bar plot of samples with detections 
+
+			plot <- a.plot + flig.boxplot + plot_annotation(tag_levels = 'a')
+		
+			ggsave(plot, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/test.png', device = 'png', units = 'in', height = 4.5, width = 8, dpi= 850)		
+
+
 		 cor.test.methods.table <- cor.test.methods %>%
 		 	dplyr::select(-method, -alternative)%>%
 		 	mutate(p.value = case_when(p.value<0.001 ~ 'p<0.001', p.value>=0.001 ~ as.character(p.value)))%>%
@@ -613,6 +632,15 @@ uk
 
 		    save_as_image(cor.test.methods.table, 'EDNA/data_edna/figures_and_tables/cortest_methods_replicates_vs_sampRepMeans.png', webshot = 'webshot2')
   			save_as_docx(cor.test.methods.table, path = 'EDNA/data_edna/figures_and_tables/cortest_methods_replicates_vs_sampRepMeans.docx')
+
+  		# t-test between means of methods 
+  			t.test(data$copies, data$copies.techrepavg)
+  		# anova (test of difference, F-stat)
+  			pacman::p_load(rstatix)
+  			data%>%
+  				group_by(method.type)%>%
+  				get_summary_stats(copies.techrepavg, type = 'mean_sd')
+  			d.aov <- data %>% anova_test(copies ~ method.type)
 
 #########
 ## -  Effect of Soak Time 
@@ -798,4 +826,30 @@ uk
   		dplyr::select(Sample.Name, Target.Name, Cq, copies,copies.techrepavg, copies.sampavg,eventID,taxa, date, method.type)
   	taxa1
 
+
+#########
+## - costings 
+#########
+
+
+	cost <- read_excel('EDNA/ordering/costings2024.xlsx', sheet = 'ms_costings_24', range = 'A1:H6',.name_repair = 'universal')%>%dplyr::select(-notes)
+	sums <- cost%>%
+		group_by(method)%>%
+		summarise(totalperunit = (sum(costperunit)),total = (sum(cost)))
+	
+	cost.flex <- cost %>%
+		mutate(costperunit = round(costperunit, 2))%>%
+		as_grouped_data(groups = 'method')%>%
+			flextable()%>%
+    set_header_labels(method = 'Method', item = 'Consumable', cost = 'Cost (£)', costperunit = 'Cost per \n\ sampling unit (£)', company = 'Supplier',itemcode = 'Item Code')%>%
+    add_footer_lines()%>%
+    theme_zebra()%>%
+    align(align = 'center', part = 'all')%>%
+    font(fontname = 'Arial', part = 'all')%>%
+    fontsize(size = 10, part = 'all')%>%
+    autofit()
+  cost.flex
+
+ 
+ save_as_docx(cost.flex, path =  'EDNA/data_edna/figures_and_tables/costings_samplingkit_2024.docx')
 

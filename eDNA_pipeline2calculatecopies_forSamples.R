@@ -227,7 +227,7 @@ setwd('/Users/mollykressler/Documents/Documents - Molly’s MacBook Pro/EDNA/dat
 		    mutate(copies = ifelse(is.na(Cq), 0, copies))%>% # this says if the original Cq is NA, set the copies to 0, but it will not directly affect the calculations in the next step which calculate the tech rep averages based on loq_check reliability. The results for copies mean is a slight reduction in the mean overall, but no differrence to the min or max. 
 		    mutate(copies.techrepavg = if_else(reliable, median(copies), 0))
 		    summary(output)
-	# (C) 
+	# (C) - July 2024: I dont think this is logical anymore, calculatign the sampling event mean. bc we treat each sampling relicate as individual samples. it doesn't changes results because we only use the techrepavg in the analysis dcuments. But I'm leaving this as a note here for future reference. 
 		fieldsamp_averagecopies <- output %>%
 		  filter(grepl("\\.1$|\\.2$|\\.3$", Sample.Name)) %>%
 		  group_by(Target.Name, Sample.Name) %>%
