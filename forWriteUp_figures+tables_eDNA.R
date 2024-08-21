@@ -91,18 +91,21 @@ uk
 fieldsamples %>% summarise(mean = mean(log(copies+1)), sd = sd(log(copies+1))) # 0.660, 2.226
 fieldsamples %>% group_by(method.type, Target.Name) %>% summarise(mean = mean(log(copies+1)), sd = sd(log(copies+1))) # mt 0.287, 1.83; wb 0.877, 2.4
 
-plot<- fieldsamples %>% 
+plot<- data %>% 
 	filter(copies != 0)%>%
 	mutate(taxa = as.character(case_when(Target.Name == 'Engraulis' ~ 'Fish', Target.Name == 'Scomber' ~ 'Fish',Target.Name == 'Prionace' ~ 'Shark', Target.Name == 'Alopias' ~ 'Shark')),
 		method.type = case_when(method.type == 'metaprobe' ~ 'Metaprobe', method.type == 'waterbottle' ~ 'Water Bottle'))%>%
 	group_by(method.type, taxa) %>%
-	ggplot(aes(x = interaction(method.type,taxa), y = log(copies+1), fill = method.type))+
+	ggplot(aes(x = interaction(method.type,taxa), y = copies, fill = method.type))+
 	geom_boxplot(alpha = 0.85)+
 	scale_fill_manual(labels = c('Metaprobe', 'Water Bottle'), values=c('#DAA507','#8EC7D2'), name = 'Method')+
 	labs(y = 'DNA yield (non-0 technical replicates, log)', x = NULL)+
 	scale_x_discrete(labels = c('Metaprobe\n\ Fish', 'Water Bottle\n\ Fish', 'Metaprobe\n\ Shark', 'Water Bottle\n\ Shark'))+
 	theme_bw()+
 	guides(fill = 'none')
+
+plot
+
 	ggsave(plot, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/boxplots_DNAyield_non0_bymethod_and_taxa.png', device = 'png', units = 'in', width = 4.5, height = 4.5, dpi = 1080)
 
 
