@@ -40,9 +40,6 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 	ggsave(hist, file = 'EDNA/data_edna/brms/figures/hist_bySpecies.png', device = 'png', units = 'in', height = 6, width = 6, dpi = 800)
 
 
-
-
-
 ########
 ## Nimble  models 
 ########
@@ -121,6 +118,10 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 
 		saveRDS(samplesZ, 'EDNA/data_edna/nimble_outputs_modelobjects/ZinflatedPoissonLogNormal_eDNA_50kiter_12kburn_3c_july2024.RDS')
 	
+########
+## - Plots and Tables
+#######
+
 	# summary and caterpillars
 
 		samplesListZ <- readRDS('EDNA/data_edna/nimble_outputs_modelobjects/ZinflatedPoissonLogNormal_eDNA_50kiter_12kburn_3c_july2024.RDS')
@@ -201,9 +202,9 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 			gather_draws(`b0`,`b1`,`b2`, `b3`, `b4`)%>%
 			median_hdi(.width = c(.5,.95))%>%
 			mutate(key = case_when(.variable == 'b0' ~ 'M-F', .variable == 'b1' ~ 'W-F', .variable == 'b2' ~ 'M-S', .variable == 'b4' ~ 'W-S', .variable == 'b3' ~ 'Intx'))
-		inter = as.numeric(draws3%>%filter(key == 'Intercept')%>%select(.value))
+		inter = as.numeric(draws3%>%filter(key == 'Intercept')%>%dplyr::select(.value))
 		post <- draws3 %>%
-			filter(key != 'Intx')
+			filter(key != 'Intx') # summary
 
 		spread2 <- samplesListZ %>%
 			spread_draws(`b0`,`b1`,`b2`, `b3`, `b4`)%>%
@@ -212,7 +213,7 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 				plot.order = case_when(var == 'b0' ~ 2, var == 'b1' ~ 1, var == 'b2' ~ 4, var == 'b4' ~ 3, var == 'b3' ~ 5
 					))
 		post2 <- spread2 %>%
-			filter(key != 'Intx')
+			filter(key != 'Intx') # all draws 
 
 
 		condition.means <-	ggplot()+
@@ -236,8 +237,8 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 		 	geom_hline(yintercept = lines$median[1], linetype = 2, col = '#DAA507')+ # 20.4
 		 	geom_hline(yintercept = lines$median[2], linetype = 2, col = '#8EC7D2')+ # 40.5
 		 	theme_bw()+
-		 	labs(y = 'DNA yield (µg/µL)', x = 'Condition', color = NULL)
-	 	condition.means2
+		 	labs(y = 'DNA yield', x = 'Condition', color = NULL)
+	 	condition.means2 ## in the manuscript
 
 		condition.means3 <-	ggplot()+
 		 	stat_slabinterval(data = post2, aes(y = value, x = reorder(key, plot.order)), point_interval = 'median_hdi', position = 'dodge', fill = 'lightblue2', slab_type = 'pdf')+
@@ -264,12 +265,34 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 		ggsave(both, file = 'EDNA/data_edna/figures_and_tables/nimble_outputs/cater_AND_pairwise_posterior_comparisons_modelZ_july2024.png', device = 'png', units = 'in', height = 4, width = 8, dpi = 850)
 
 
+	### Figure 7 a & b 
+		fig7 <- caterpillars + condition.means2 + plot_layout(widths = c(.75,1)) + plot_annotation(tag_levels = 'a')
+
+		ggsave(fig7, file = 'towardschapters_PhD/assembling the thesis/chp4_fig7_cater_AND_conditionmeans_modelZ_july2024.png', device = 'png', units = 'in', height = 4, width = 8, dpi = 1080)
 
 
+	## Stack with cbind and remake conditional posteriors plot for Method. Plot the 50s+80s %s, leave out the 95%. 
+		post2 ## spread long, so a cbind isn't what we need. We need to create a new ID based on 'var' which combines metaprobes and waterbottles groups.
 
+		post3 <- post2 %>%
+			mutate(group = case_when(
+				var == 'b0' ~ 'Metaprobe',
+				var == 'b1' ~ 'Water Bottle',
+				var == 'b2' ~ 'Metaprobe',
+				var == 'b4' ~ 'Water Bottle'
+				), .after = 'var')
 
-
-
+		stacked_groupmeans <- ggplot(data = post3, aes(y = value, x = group))+
+			stat_interval(geom = 'interval', .width = c(.5, .8), point_interval = 'median_hdi', orientation = 'vertical', width = 0.9)+
+		 	scale_color_grey(guide = NULL, start = 0.75,end = .15)+
+		 	stat_summary(fun="median", geom="segment", mapping=aes(xend=..x.. - 0.08, yend=..y..), size = 1)+
+		 	stat_summary(fun="median", geom="segment", mapping=aes(xend=..x.. + 0.08, yend=..y..), size = 1)+
+		 	theme_bw()+
+		 	theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())+
+		 	labs(y = 'Posterior DNA yield', x = NULL, color = NULL)
+		
+		ggsave(stacked_groupmeans, file = 'EDNA/data_edna/figures_and_tables/nimble_outputs/GlobalMeans_method_medianLines_modelZ_july2024.png', device = 'png', units = 'in', height = 4, width = 5, dpi = 1080)
+		ggsave(stacked_groupmeans, file = 'EDNA/data_edna/figures_and_tables/nimble_outputs/GlobalMeans_method_medianLines_modelZ_july2024_forposter.png', device = 'png', units = 'in', height = 3.5, width = 3.5, dpi = 1080)
 
 
 

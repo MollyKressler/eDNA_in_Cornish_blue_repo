@@ -68,15 +68,19 @@ uk
 		geom_sf(data=coastalwater,fill='cadetblue4', col=NA, lwd=0.5, alpha = 0.5)+
 		geom_sf(data=kernios, lwd=0.5)+
 		geom_sf(data=st_jitter(st_geometry(sp3), factor=0.0075), col='#000A52',size=2,pch=20, alpha = 0.5)+
-		theme_bw()
+		theme_bw()+
+		theme(axis.text.y = element_text(size = 18, angle = 90, hjust = 0.5),axis.text.x = element_text(size = 18))+
+		scale_y_continuous(limits = c(49.5,51), breaks = c(50,51))+
+		scale_x_continuous(limits = c(-4, -6.5), breaks = c(-4, -5, -6))
 	#sample_location_extractions # this is at the sample replicate level
 
 	map <- ggdraw()+
 		draw_plot(sample_location_extractions)+
 		draw_plot(uk.map, height=0.4, x = -0.29, y = 0.52)
 	
-	ggsave(map,file = 'EDNA/data_edna/figures_and_tables/samplinglocations_2023_withUKinset.png',device='png',units='in',dpi=450,height=5.5,width=5.5)
-
+	ggsave(map,file = 'EDNA/data_edna/figures_and_tables/samplinglocations_2023_withUKinset.png',device='png',units='in',dpi=850,height=5.5,width=5.5)
+#	ggsave(map,file = 'EDNA/data_edna/figures_and_tables/samplinglocations_2023_withUKinset_themeVoid.png',device='png',units='in',dpi=450,height=5.5,width=5.5)
+ 
 	## Distance from shore 
 
 	sp11 <- fieldsamples.sf %>% mutate(dist2shore.km = st_distance(fieldsamples.sf, kernios)/1000)
@@ -108,8 +112,6 @@ plot
 
 	ggsave(plot, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/boxplots_DNAyield_non0_bymethod_and_taxa.png', device = 'png', units = 'in', width = 4.5, height = 4.5, dpi = 1080)
 
-
-	
 
 
 
@@ -610,11 +612,12 @@ plot
 				geom_boxplot()+
 				scale_fill_manual(values=c('#DAA507','#8EC7D2'))+
 				theme_bw()+
-				labs(x = 'Method', y = 'DNA yield of technical replicates (log)')+
+				labs(x = 'Method', y = 'DNA yield of non-0 technical replicates (log)')+
+				theme(axis.ticks.x = element_blank(),axis.text.x = element_blank(), axis.text = element_text(size = 18))+
 				guides(fill = 'none')
 
-			ggsave(flig.boxplot, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/boxplot_copies_bymethod_togowithFLigTest.png', device = 'png', units = 'in', height = 4.5, width = 4.5, dpi= 850)		
-
+			ggsave(flig.boxplot, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/boxplot_copies_bymethod_togowithFLigTest_whentechRepsareNOT0.png', device = 'png', units = 'in', height = 4.5, width = 4.5, dpi= 850)		
+ 
 			# combine this boxplot with the bar plot of samples with detections 
 
 			plot <- a.plot + flig.boxplot + plot_annotation(tag_levels = 'a')
@@ -673,6 +676,11 @@ plot
   save_as_image(soaks.flex, 'EDNA/data_edna/qPCRresults/figures_and_tables/soaktimes_metaprobes_seconds_2023.png', webshot = 'webshot2')
   save_as_docx(soaks.flex, path = 'EDNA/data_edna/qPCRresults/figures_and_tables/soaktimes_metaprobes_seconds_2023.docx')
 
+
+  ## descriptive stats
+	  soaks%>%
+	  	filter(!is.na(soaktime.min))%>%
+	  	summarise(min = min(soaktime.min), max = max(soaktime.min))
 
   ## glmer 
 
