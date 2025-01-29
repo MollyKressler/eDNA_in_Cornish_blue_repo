@@ -197,7 +197,7 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 		 save_as_docx(maintext_fitZ, path = 'EDNA/data_edna/figures_and_tables/nimble_outputs/plainlanguageParameter_mcmcsummary_modelZ_50kiter_12kburn_3c_july2024.docx')
 
 
-	# plot mean estimates for effects 
+	# plot median estimates for effects 
 		draws3 <- samplesListZ %>%
 			gather_draws(`b0`,`b1`,`b2`, `b3`, `b4`)%>%
 			median_hdi(.width = c(.5,.95))%>%
@@ -205,6 +205,7 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 		inter = as.numeric(draws3%>%filter(key == 'Intercept')%>%dplyr::select(.value))
 		post <- draws3 %>%
 			filter(key != 'Intx') # summary
+
 
 		spread2 <- samplesListZ %>%
 			spread_draws(`b0`,`b1`,`b2`, `b3`, `b4`)%>%
@@ -295,10 +296,11 @@ data <- read.csv('EDNA/data_edna/qPCRresults/processedQPCRresults_cornwallspecie
 		ggsave(stacked_groupmeans, file = 'EDNA/data_edna/figures_and_tables/nimble_outputs/GlobalMeans_method_medianLines_modelZ_july2024_forposter.png', device = 'png', units = 'in', height = 3.5, width = 3.5, dpi = 1080)
 
 
-
-
-
-
+		#### Descriptive statistics for stacked post-medians
+		#by method
+		post3 %>%group_by(group)%>% summarise(median_hdi = median_hdi(value))%>%as.data.frame()
+		# by method and target
+		post3 %>%group_by(key)%>% summarise(median_hdi = median_hdi(value))%>%as.data.frame()
 
 
 

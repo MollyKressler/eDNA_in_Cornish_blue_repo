@@ -83,7 +83,7 @@ uk
 	max(sp11$dist2shore.km) # 50.585 km
 
 
-## -  Detections of species at locations
+## -  Detections of species at locations (Dec24/Jan25)
 
 
 # start simple, one point per amplification (sampling replicates)
@@ -125,29 +125,37 @@ uk
 		ggsave(all, file = 'EDNA/data_edna/figures_and_tables/species_detections_locations_copies2size_jittered_setof3.png', device = 'png', units = 'in', height = 4, width = 8.5, dpi = 850)
 
 
-## - Five panel map: sampling location and species specific detections 
+## - Five panel map: sampling location and species specific detections (Dec24/Jan25) 
 		# map - sampling locations with uk map 
-
+	p <- fieldsamples.sf %>% 
+			dplyr::select(eventID, Sample.Name, Target.Name,copies.techrepavg, method.type, geometry)%>%
+			filter(!is.na(copies.techrepavg))%>%
+			filter(copies.techrepavg != 0)
+ 
 	sp3 <- fieldsamples.sf %>% distinct(Sample.Name, .keep_all = TRUE) %>% 
 			dplyr::select(eventID, Sample.Name, Target.Name,copies.techrepavg, method.type, geometry)%>%
 			mutate(Target.Name = 'Locations', copies.techrepavg = 50) # need to give them a false value for copies so that the plot can show points (this data is just for the locations map)
 
 	mapdata <- bind_rows(sp3, p)
 
+	labels = c('A','B','C','D')
+	names(labels) = c('Locations', 'Engraulis', 'Scomber', 'Prionace')
+
 	detts <- ggplot()+ 
-			geom_sf(data=coastalwater,fill='cadetblue4', col=NA, lwd=0.5, alpha = 0.5)+
+			geom_sf(data=coastalwater,fill='#03002E', col=NA, lwd=0.5, alpha = 0.5)+
 			geom_sf(data=kernios, lwd=0.5)+
-			geom_sf(data=st_jitter(mapdata, factor = 0.01), aes(col = factor(interaction(Target.Name, method.type)), fill = method.type, alpha = Target.Name, shape = factor(interaction(Target.Name, method.type)), size = log(copies.techrepavg)))+
+			geom_sf(data=st_jitter(mapdata, factor = 0.025), aes(col = factor(interaction(Target.Name, method.type)), fill = factor(interaction(Target.Name, method.type)), alpha = Target.Name, shape = factor(interaction(Target.Name, method.type)), size = log(copies.techrepavg)))+
 			theme_bw()+
 			scale_y_continuous(limits = c(49.4,50.8), breaks = c(49.5,50,50.5))+
 			scale_x_continuous(limits = c(-4, -6.5), breaks = c(-4, -5, -6))+
-			facet_wrap(~factor(Target.Name, levels = c('Locations', 'Engraulis', 'Scomber', 'Prionace')), ncol = 2)+	      
-			scale_color_manual(values=c('#DAA507','#DAA507','#DAA507','#DAA507','#8EC7D2','#8EC7D2','#8EC7D2','#8EC7D2'), name = 'Method')+
-			scale_fill_manual(values=c('#DAA507',NULL,'#DAA507','#DAA507','#8EC7D2',NULL,'#8EC7D2','#8EC7D2'), name = 'Method')+
+			facet_wrap(~factor(Target.Name, levels = c('Locations', 'Engraulis', 'Scomber', 'Prionace'), labels = labels), ncol = 2)+
       theme(strip.background = element_rect(color = NA, fill = NA), strip.text = element_text(size = 12, hjust = 0))+
       scale_alpha_manual(values = c(0.25,1, 0.25, 0.25))+
-      scale_shape_manual(values = c(19, 1, 19, 19,19, 1, 19, 19))+
-			guides(alpha = 'none', size = 'none', shape = 'none', fill = 'none', color = 'none')
+      scale_shape_manual(values = c(19, 1, 19, 19,25, 6, 25, 25), name = 'Method')+
+      scale_size(range = c(0,9))+
+			scale_color_manual(values=c('#DAA507','#DAA507','#DAA507','#DAA507','#8EC7D2','#8EC7D2','#8EC7D2','#8EC7D2'), name = 'Method')+
+			scale_fill_manual(values=c('#DAA507','#DAA507','#DAA507','#DAA507','#8EC7D2','#DAA507','#8EC7D2','#8EC7D2'), name = 'Method')+
+			guides(alpha = 'none', size = 'none', shape = 'none', color = 'none', fill = 'none')
 
 	ggsave(detts, file = 'EDNA/data_edna/figures_and_tables/samplinglocations_andspeciesdetections.png', device = 'png', units = 'in', dpi = 850)
 
@@ -430,7 +438,7 @@ plot
       slice(1)%>% 
       dplyr::select(-n, -Assay.Role, -Cq, -reliable, -testID, -copies.techrepavg, -loq_check)%>%
       ungroup()%>%
-      mutate_if(is.numeric, round, digits = 3)%>%
+      mutate_if(is.numeric, round, digits = 3)#%>%
       flextable()%>%
       	set_header_labels(copies.sampavg = 'Copy Number \n\ (Mean of Samp. Replicates)', Target.name = 'Target', Sample.Name = 'Sample ID')%>%
      theme_zebra()
@@ -525,7 +533,7 @@ plot
       scale_fill_manual(labels = c('Metaprobe', 'Water Bottle'),values=c('#DAA507','#8EC7D2'))+
       scale_shape_manual(labels = c('Metaprobe', 'Water Bottle'), values = c(19,17))+
       xlab('Sampling Date')+ 
-      ylab('Copies (log)')+
+	      ylab('Copies (log + 0.1)')+
       ggtitle('All Species')+
       theme_bw()+
       theme(plot.title = element_text(size=10, face='italic'),legend.position = 'bottom')+
@@ -545,7 +553,7 @@ plot
 	      theme_bw()+
 	      theme(strip.background = element_rect(fill = NA,colour = NA),plot.title = element_text(size=10, face='italic'),legend.position = 'bottom')+
 		      xlab('Sampling Date')+ 
-	      ylab('Copies (log)')+
+	      ylab('Copies (log + 0.1)')+
 	      labs(fill="Method", col= "Method", pch = 'Method')+
 	    scale_x_date(date_breaks = 'months', date_labels = '%b-%y')
 
@@ -563,26 +571,35 @@ plot
 		      theme_bw()+
 		      theme(strip.background = element_rect(fill = NA,colour = NA),plot.title = element_text(size=10, face='italic'),legend.position = 'bottom')+
  		      xlab('Sampling Date')+ 
-		      ylab('Copies (log)')+
+	      ylab('Copies (log + 0.1)')+
 		      labs(fill="Method", col= "Method", pch = 'Method')+
 		    scale_x_date(date_breaks = 'months', date_labels = '%b-%y')
 		   #copies_by_taxa
 
+	## stat sum, instead of geom_smooth
 
-	## stack species ones 
-		all_spp_solo <- ggplot(taxa, aes(date,log(copies.techrepavg+0.1), group = method.type, pch = method.type,col = method.type, fill = method.type))+ geom_smooth(span = 2, se = TRUE, level = 0.95, alpha=0.3)+
-		      scale_color_manual(labels = c('Metaprobe', 'Water Bottle'),values=c('#DAA507','#8EC7D2'))+
-		      scale_fill_manual(labels = c('Metaprobe', 'Water Bottle'),values=c('#DAA507','#8EC7D2'))+
-      		  scale_shape_manual(labels = c('Metaprobe', 'Water Bottle'), values = c(19,17))+
-		      geom_point()+
-		      facet_wrap(~Target.Name, nrow = 1,scales = 'free',labeller = labeller(Target.Name = c(Engraulis = 'Engraulis encrasicolus', 'Scomber' = 'Scomber scombrus', 'Prionace' = 'Prionace glauca', 'Alopias' = 'Alopias vulpinas')))+
-		      theme_bw()+
-		      theme(strip.text = element_text(face = "italic"),strip.background = element_rect(fill = NA,colour = NA),plot.title = element_text(size=10, face='italic'),legend.position = 'bottom')+
- 		      xlab('Sampling Date')+ 
-		      ylab('Copies (log)')+
-		      labs(fill="Method", col= "Method", pch = 'Method')+
-		    scale_x_date(date_breaks = 'months', date_labels = '%b-%y')
-		    all_spp_solo
+	    taxa1 <- fieldsamples %>%
+    	mutate(taxa = as.character(case_when(Target.Name == 'Engraulis' ~ 'Fish', Target.Name == 'Scomber' ~ 'Fish',Target.Name == 'Prionace' ~ 'Shark', Target.Name == 'Alopias' ~ 'Shark')))%>%
+  		mutate(date = ymd(sampling.date))%>%
+  		as_tibble()%>%
+  		dplyr::select(Sample.Name, Target.Name, Cq, copies,copies.techrepavg, copies.sampavg,eventID,taxa, date, method.type)
+  	  tt <- taxa1 %>%mutate(taxa = "All")
+		  ttt <- bind_rows(taxa1,tt)
+
+   stat_sum_event_speciesbycolor <- ggplot(data = ttt)+
+      stat_summary(aes(x = date, y = log(copies.techrepavg+0.1),col = method.type, pch = method.type), fun.min = function(z) { quantile(z,0.25) },fun.max = function(z) { quantile(z,0.75) },fun = mean, position = position_jitter(width = 0.3, height = .3))+
+	    scale_color_manual(labels = c('Metaprobe', 'Water Bottle'),values=c('#DAA507','#8EC7D2'))+
+	    scale_fill_manual(labels = c('Metaprobe', 'Water Bottle'),values=c('#DAA507','#8EC7D2'))+
+  	  scale_shape_manual(labels = c('Metaprobe', 'Water Bottle'), values = c(19,17))+
+      ylab('Copies (log + 0.1)')+
+      facet_wrap(~taxa, nrow = 1)+
+      xlab('Sampling Date')+
+      theme_bw()+
+      theme(strip.background = element_rect(fill = NA,colour = NA),plot.title = element_text(size=10, face='italic'), legend.position = 'bottom')+
+      labs(color="Method", pch = 'Method')+
+      scale_x_date(date_breaks = 'months', date_labels = '%b-%y')
+
+	  ggsave(stat_sum_event_speciesbycolor, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/stat_sum_copies_test.png', device = 'png', units = 'in', height = 3.5, width = 8, dpi = 1080)
 
 
    #######
@@ -842,9 +859,8 @@ plot
       ## How many metaprobes/waterbottles had 3/3 of amplifications for field samples
 
 		a <- fs2 %>%
-		filter(grepl("\\.1$|\\.2$|\\.3$", Sample.Name)) %>%
-        filter(reliable =='1') 
-      	aa <- a %>% group_by(Sample.Name, method.type)%>%
+		filter(grepl("\\.1$|\\.2$|\\.3$", Sample.Name))
+		  	aa <- fs2 %>% group_by(Sample.Name, method.type)%>%
       	count()%>%
       	group_by(method.type)%>%
       	count()
@@ -862,12 +878,15 @@ plot
       	save_as_image(aaa.table, path ='EDNA/data_edna/figures_and_tables/comparingmethods/no_of_replicates_per_method_amplified3of3.png', webshot = 'webshot2')
 
      ## would be better as a hist/bar plot
-      	a.plot <- ggplot(data = aaa, aes(y = n, x = Target.Name, fill = method.type))+
-      		geom_col()+
+      	levels <- c('Scomber', 'Engraulis', 'Prionace','Alopias')
+
+      	a.plot <- ggplot(data = aaa, aes(x = n, y = interaction(Target.Name,method.type), fill = method.type))+
+      		geom_col(orientation = 'y')+
       		theme_bw()+    
-      		scale_fill_manual(labels = c('Metaprobe', 'Water Bottle'), values=c('#DAA507','#8EC7D2'))+    
-      		labs(fill="Method", x = 'Species', y = 'Detections')+
-      		theme(legend.position = 'bottom', legend.direction = 'horizontal') 
+      		scale_fill_manual(labels = c('Metaprobe (MP)', 'Water Bottle (WB)'), values=c('#DAA507','#8EC7D2'))+    
+      		labs(fill="Method", y = NULL, x = 'Detections')+
+      		scale_y_discrete(labels = c('Alopias-MP','Engraulis-MP','Prionace-MP','Scomber-MP','Alopias-WB', 'Engraulis-WB','Prionace-WB','Scomber-WB'))+
+      		theme(legend.position = 'bottom', legend.direction = 'horizontal')
   	  	
   	  	ggsave(a.plot, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/no_of_replicates_per_method_amplified3of3_plot.png', device = 'png', units = 'in', height = 4.5, width = 4.5, dpi = 550)
 
@@ -877,12 +896,6 @@ plot
 ## - Comparing methods - Copies by sampling event (stat_sum of the replicates) 
 #########
 
-    taxa1 <- fieldsamples %>%
-    	mutate(taxa = as.character(case_when(Target.Name == 'Engraulis' ~ 'Fish', Target.Name == 'Scomber' ~ 'Fish',Target.Name == 'Prionace' ~ 'Shark', Target.Name == 'Alopias' ~ 'Shark')))%>%
-  		mutate(date = ymd(sampling.date))%>%
-  		as_tibble()%>%
-  		dplyr::select(Sample.Name, Target.Name, Cq, copies,copies.techrepavg, copies.sampavg,eventID,taxa, date, method.type)
-  	taxa1
 
  
    stat_sum_event_speciesbycolor <- ggplot(data = taxa1)+
@@ -895,6 +908,24 @@ plot
       labs(color="Species", pch = 'Method')#+
       #scale_x_date(date_breaks = 'weeks', date_labels = '%d-%b-%y')
 	  ggsave(stat_sum_event_speciesbycolor, file = 'EDNA/data_edna/figures_and_tables/comparingmethods/stat_sum_copies_bydate_meanTECHRepcopies.png', device = 'png', units = 'in', height = 6, width = 6, dpi = 800)
+
+
+ 		 copies_by_taxa <- ggplot(ttt, aes(date,log(copies.techrepavg+0.1), group = method.type, pch = method.type,col = method.type, fill = method.type))+ geom_smooth(span = 2, se = TRUE, level = 0.95, alpha=0.3)+
+		      scale_color_manual(labels = c('Metaprobe', 'Water Bottle'),values=c('#DAA507','#8EC7D2'))+
+		      scale_fill_manual(labels = c('Metaprobe', 'Water Bottle'),values=c('#DAA507','#8EC7D2'))+
+      		  scale_shape_manual(labels = c('Metaprobe', 'Water Bottle'), values = c(19,17))+
+		      geom_point()+
+		      facet_wrap(~taxa, nrow = 1,scales = 'free')+
+		      theme_bw()+
+		      theme(strip.background = element_rect(fill = NA,colour = NA),plot.title = element_text(size=10, face='italic'),legend.position = 'bottom')+
+ 		      xlab('Sampling Date')+ 
+	      ylab('Copies (log + 0.1)')+
+		      labs(fill="Method", col= "Method", pch = 'Method')+
+		    scale_x_date(date_breaks = 'months', date_labels = '%b-%y')
+		   #copies_by_taxa
+
+sapply(ttt,class)
+
 
 
       taxa2 <- taxa1 %>% 
